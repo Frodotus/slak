@@ -1031,6 +1031,11 @@ class PyslkApp(App):
                 is_active_view = (
                     client is self.client and event.channel_id == self.active_channel
                 )
+                debug(
+                    f"[event] NewMessage ch={event.channel_id} "
+                    f"active={self.active_channel} is_active={is_active_view} "
+                    f"in_cache={event.channel_id in self._chan_meta.get(client.team_id, {})}"
+                )
                 if is_active_view:
                     # active-channel suppression: reading it, so it stays read
                     self.query_one("#messages", MessagePane).add_message(
@@ -1043,6 +1048,12 @@ class PyslkApp(App):
                 else:
                     self.cache.update_read_state(event.channel_id, "", has_unread=True)
                     if client is self.client:
+                        unread = {
+                            cid for cid, s in self.cache.get_workspace_read_state(
+                                client.team_id
+                            ).items() if s.has_unread
+                        }
+                        debug(f"[event] marked unread; unread set now={unread}")
                         self._refresh_sidebar_unread()
                     self._refresh_rail()
             elif isinstance(event, ReactionUpdated) and client is self.client:

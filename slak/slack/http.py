@@ -30,6 +30,8 @@ import json
 
 import httpx
 
+from slak.debuglog import debug
+
 from slak.slack import (
     AuthError,
     Connected,
@@ -423,7 +425,12 @@ class HttpSlackClient:
             await self._events.put(Connected(team_id=self.team_id))
             try:
                 async for raw in ws:
-                    event = parse_rtm_event(json.loads(raw))
+                    data = json.loads(raw)
+                    debug(
+                        f"[ws] type={data.get('type')!r} "
+                        f"subtype={data.get('subtype')!r} channel={data.get('channel', '')}"
+                    )
+                    event = parse_rtm_event(data)
                     if event is not None:
                         await self._events.put(event)
             finally:
