@@ -184,81 +184,127 @@ def emoji_png(data: bytes, size: int = 48) -> bytes:
     return out.getvalue()
 
 
-def media_png(data: bytes, max_cols: int = 24, max_rows: int = 10,
-              cell_aspect: float = 2.1) -> tuple[bytes, int, int]:
-    """Normalise an attachment/block image to a PNG plus its cell footprint.
+def _fit_cells(w: int, h: int, max_cols: int, max_rows: int,
+               cell_aspect: float = 2.1) -> tuple[int, int]:
+    """Cell footprint preserving aspect (cells ~``cell_aspect``× taller), capped."""
+    cols = max_cols
+    rows = max(1, round(cols * (h / w) / cell_aspect))
+    if rows > max_rows:
+        rows = max_rows
+        cols = max(1, round(rows * (w / h) * cell_aspect))
+    return cols, rows
 
-    Returns ``(png, cols, rows)`` where cols×rows preserves the image's aspect
-    (terminal cells are ~``cell_aspect``× taller than wide), capped to the max
-    box; the PNG is downscaled to keep the transmit payload small.
-    """
+
+def _first_frame(data: bytes, mode: str = "RGBA"):
     import io
 
     from PIL import Image
 
     img = Image.open(io.BytesIO(data))
     try:
-        img.seek(0)
+        img.seek(0)  # first frame of an animation
     except (EOFError, ValueError):
         pass
-    img = img.convert("RGBA")
-    w, h = img.size
-    cols = max_cols
-    rows = max(1, round(cols * (h / w) / cell_aspect))
-    if rows > max_rows:
-        rows = max_rows
-        cols = max(1, round(rows * (w / h) * cell_aspect))
+    return img.convert(mode)
+
+
+def media_png(data: bytes, max_cols: int = 24, max_rows: int = 10,
+              cell_aspect: float = 2.1) -> tuple[bytes, int, int]:
+    """Normalise an attachment/block image to a PNG plus its cell footprint.
+
+    Returns ``(png, cols, rows)`` where cols×rows preserves the image's aspect,
+    capped to the max box; the PNG is downscaled to keep the payload small.
+    """
+    import io
+
+    img = _first_frame(data)
+    cols, rows = _fit_cells(*img.size, max_cols, max_rows, cell_aspect)
     img.thumbnail((cols * 14, rows * 30))
     out = io.BytesIO()
     img.save(out, format="PNG")
     return out.getvalue(), cols, rows
 
 
-class MediaImages:
-    """Kitty transmission for arbitrary attachment/block images (kitty-only).
+def halfblock(data: bytes, cols: int, rows: int) -> str:
+    """Render an image as Rich markup using ``▀`` half-block cells.
 
-    Like :class:`EmojiImages` but sizes images to a multi-cell footprint and uses
-    a high image-id base so its ids never collide with emoji in the kitty image
-    namespace. Disabled (no-op) off kitty.
+    Each cell packs two vertical pixels: the upper pixel becomes the glyph's
+    foreground, the lower its background. Works on any truecolor terminal — no
+    image protocol required.
+    """
+    img = _first_frame(data, "RGB").resize((cols, rows * 2))
+    px = img.load()
+
+    def hexc(c) -> str:
+        return "#{:02x}{:02x}{:02x}".format(*c[:3])
+
+    lines = []
+    for r in range(rows):
+        cells = [
+            f"[{hexc(px[c, 2 * r])} on {hexc(px[c, 2 * r + 1])}]▀[/]"
+            for c in range(cols)
+        ]
+        lines.append("".join(cells))
+    return "\n".join(lines)
+
+
+class MediaImages:
+    """Inline rendering for attachment/block images.
+
+    On **kitty** it transmits each image under a high-based image id (so ids never
+    collide with emoji) and hands back placeholder markup. On a truecolor terminal
+    (**halfblock**) it renders ``▀`` cells inline — no protocol needed. Disabled
+    (no-op) otherwise.
     """
 
     def __init__(self, protocol: str, fetch, cache_dir, emit,
                  id_base: int = 100_000, max_cols: int = 24, max_rows: int = 10):
-        self.enabled = protocol == "kitty"
+        self.enabled = protocol in ("kitty", "halfblock")
+        self._protocol = protocol
         self._cache = ImageCache(fetch, cache_dir)
         self._emit = emit
-        self._dims: dict[str, tuple[int, int, int]] = {}  # url -> (id, cols, rows)
+        self._markup: dict[str, str] = {}  # url -> ready placeholder/halfblock markup
         self._ready: set[str] = set()
         self._next = id_base
         self._max_cols = max_cols
         self._max_rows = max_rows
 
-    async def ensure(self, url: str) -> int | None:
+    async def ensure(self, url: str):
         if not self.enabled or not url:
             return None
         if url in self._ready:
-            return self._dims[url][0]
+            return True
         try:
             raw = await self._cache.get(url)
+        except Exception:
+            return None
+        if self._protocol == "kitty":
+            return await self._ensure_kitty(url, raw)
+        try:
+            cols, rows = _fit_cells(*_first_frame(raw).size, self._max_cols, self._max_rows)
+            self._markup[url] = halfblock(raw, cols, rows)
+        except Exception:
+            return None
+        self._ready.add(url)
+        return True
+
+    async def _ensure_kitty(self, url: str, raw: bytes):
+        try:
             png, cols, rows = media_png(raw, self._max_cols, self._max_rows)
         except Exception:
             return None
-        img_id = self._dims[url][0] if url in self._dims else self._next
-        if url not in self._dims:
-            self._next += 1
-        self._dims[url] = (img_id, cols, rows)
+        img_id = self._next
+        self._next += 1
         try:
             self._emit(kitty_transmit(img_id, png))
         except Exception:
             return None
+        self._markup[url] = kitty_placeholder_markup(img_id, cols, rows)
         self._ready.add(url)
         return img_id
 
     def markup(self, url: str) -> str | None:
-        if url in self._ready:
-            img_id, cols, rows = self._dims[url]
-            return kitty_placeholder_markup(img_id, cols, rows)
-        return None
+        return self._markup.get(url)
 
 
 class EmojiImages:

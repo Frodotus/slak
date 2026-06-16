@@ -18,7 +18,7 @@ import io
 
 from PIL import Image
 
-from slak.images import MediaImages, media_png
+from slak.images import MediaImages, halfblock, media_png
 
 
 def a_png(w=40, h=20) -> bytes:
@@ -50,10 +50,37 @@ async def test_media_images_transmits_and_returns_placeholder():
     assert mi.markup("http://x/other.png") is None  # not transmitted
 
 
-async def test_media_images_disabled_off_kitty():
+async def test_media_images_disabled_when_protocol_off():
     async def fetch(url):
         return a_png()
 
-    mi = MediaImages("none", fetch, cache_dir="/tmp/slak-test-media2", emit=lambda s: None)
+    mi = MediaImages("off", fetch, cache_dir="/tmp/slak-test-media2", emit=lambda s: None)
     assert await mi.ensure("http://x/a.png") is None
     assert mi.markup("http://x/a.png") is None
+
+
+def a_red_png(w=4, h=4) -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGBA", (w, h), (255, 0, 0, 255)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+def test_halfblock_emits_colored_upper_half_cells():
+    out = halfblock(a_red_png(), cols=2, rows=1)
+    assert "▀" in out
+    assert "#ff0000" in out  # the solid-red pixels
+    assert out.count("\n") == 0  # one row
+
+
+async def test_media_images_halfblock_renders_inline_text_without_emit():
+    emitted = []
+
+    async def fetch(url):
+        return a_red_png()
+
+    mi = MediaImages("halfblock", fetch, cache_dir="/tmp/slak-test-hb", emit=emitted.append)
+    assert mi.enabled
+    assert await mi.ensure("http://x/a.png")
+    assert not emitted  # halfblock is plain markup — nothing transmitted
+    markup = mi.markup("http://x/a.png")
+    assert markup is not None and "▀" in markup
