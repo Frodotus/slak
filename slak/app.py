@@ -1048,12 +1048,6 @@ class PyslkApp(App):
                 else:
                     self.cache.update_read_state(event.channel_id, "", has_unread=True)
                     if client is self.client:
-                        unread = {
-                            cid for cid, s in self.cache.get_workspace_read_state(
-                                client.team_id
-                            ).items() if s.has_unread
-                        }
-                        debug(f"[event] marked unread; unread set now={unread}")
                         self._refresh_sidebar_unread()
                     self._refresh_rail()
             elif isinstance(event, ReactionUpdated) and client is self.client:
