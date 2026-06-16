@@ -296,7 +296,9 @@ class MediaImages:
         img_id = self._next
         self._next += 1
         try:
-            self._emit(kitty_transmit(img_id, png))
+            # virtual placement must match the placeholder footprint (cols×rows),
+            # otherwise the image is crammed into the 2×1 emoji default
+            self._emit(kitty_transmit(img_id, png, cols, rows))
         except Exception:
             return None
         self._markup[url] = kitty_placeholder_markup(img_id, cols, rows)

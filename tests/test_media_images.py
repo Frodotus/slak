@@ -46,6 +46,10 @@ async def test_media_images_transmits_and_returns_placeholder():
     assert img_id is not None
     assert img_id >= 100_000  # high id range, no emoji collision
     assert emitted  # an upload sequence was emitted
+    # the virtual placement must match the media footprint, not emoji 2x1
+    _, cols, rows = media_png(a_png())
+    assert f"c={cols},r={rows}" in emitted[0]
+    assert cols > 2
     assert mi.markup("http://x/a.png") is not None
     assert mi.markup("http://x/other.png") is None  # not transmitted
 
