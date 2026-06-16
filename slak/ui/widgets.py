@@ -34,7 +34,7 @@ from textual.screen import ModalScreen
 from rich.markup import escape
 
 from slak.emoji import emoji_glyph
-from slak.finder import rank_channels
+from slak.finder import rank_by_name
 from slak.help import render_help
 from slak.render import render_message
 from slak.slack import Reaction, RemoteChannel, RemoteMessage
@@ -389,13 +389,20 @@ class SearchResultsModal(ModalScreen):
         self.dismiss(None)
 
 
-class ChannelFinder(ModalScreen):
-    """Fuzzy channel/DM finder (``Ctrl+K``, spec 03 §5).
+class FuzzyPicker(ModalScreen):
+    """Reusable fuzzy-filter overlay (channel finder, workspace switcher).
 
-    Type to filter (accent-insensitive, match-tier order); ``↑``/``↓`` move the
-    highlight while the input keeps focus; ``Enter`` opens the highlighted
-    channel; ``Esc`` cancels. Dismisses with the chosen channel id, or ``None``.
+    Type to filter (accent-insensitive, match-tier order, via
+    :func:`slak.finder.rank_by_name`); ``↑``/``↓`` move the highlight while the
+    input keeps focus; ``Enter`` accepts the highlighted item; ``Esc`` cancels.
+    Dismisses with the chosen item's ``.id``, or ``None``.
+
+    Subclasses set :attr:`PREFIX` (CSS id stem) and :attr:`PLACEHOLDER`, and may
+    override :meth:`_label` to format each row.
     """
+
+    PREFIX = "picker"
+    PLACEHOLDER = "Filter…"
 
     BINDINGS = [
         Binding("escape", "cancel", show=False),
@@ -403,29 +410,35 @@ class ChannelFinder(ModalScreen):
         Binding("up", "cursor_up", show=False),
     ]
 
-    def __init__(self, channels: list[RemoteChannel]):
+    def __init__(self, items):
         super().__init__()
-        self._all = list(channels)  # incoming order = recency order
-        self._shown: list[RemoteChannel] = list(channels)
+        self._all = list(items)  # incoming order = recency order
+        self._shown = list(items)
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="finder"):
-            yield Input(placeholder="Jump to channel…", id="finder-input")
-            yield OptionList(id="finder-results")
+        with Vertical(id=self.PREFIX):
+            yield Input(placeholder=self.PLACEHOLDER, id=f"{self.PREFIX}-input")
+            yield OptionList(id=f"{self.PREFIX}-results")
 
     def on_mount(self) -> None:
         self._populate("")
-        self.query_one("#finder-input", Input).focus()
+        self.query_one(f"#{self.PREFIX}-input", Input).focus()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         self._populate(event.value)
 
+    def _label(self, item) -> str:
+        return item.name
+
+    def _results(self) -> OptionList:
+        return self.query_one(f"#{self.PREFIX}-results", OptionList)
+
     def _populate(self, query: str) -> None:
-        self._shown = rank_channels(self._all, query)
-        opts = self.query_one("#finder-results", OptionList)
+        self._shown = rank_by_name(self._all, query)
+        opts = self._results()
         opts.clear_options()
-        for ch in self._shown:
-            opts.add_option(f"{_channel_glyph(ch)} {ch.name}")
+        for item in self._shown:
+            opts.add_option(self._label(item))
         if self._shown:
             opts.highlighted = 0
 
@@ -436,7 +449,7 @@ class ChannelFinder(ModalScreen):
         self._move(-1)
 
     def _move(self, delta: int) -> None:
-        opts = self.query_one("#finder-results", OptionList)
+        opts = self._results()
         if opts.option_count:
             cur = opts.highlighted or 0
             opts.highlighted = max(0, min(opts.option_count - 1, cur + delta))
@@ -450,8 +463,7 @@ class ChannelFinder(ModalScreen):
             self.dismiss(self._shown[idx].id)
 
     def _accept(self) -> None:
-        opts = self.query_one("#finder-results", OptionList)
-        idx = opts.highlighted
+        idx = self._results().highlighted
         if idx is not None and 0 <= idx < len(self._shown):
             self.dismiss(self._shown[idx].id)
         else:
@@ -459,6 +471,26 @@ class ChannelFinder(ModalScreen):
 
     def action_cancel(self) -> None:
         self.dismiss(None)
+
+
+class ChannelFinder(FuzzyPicker):
+    """Fuzzy channel/DM finder (``Ctrl+K``, spec 03 §5)."""
+
+    PREFIX = "finder"
+    PLACEHOLDER = "Jump to channel…"
+
+    def _label(self, item: RemoteChannel) -> str:
+        return f"{_channel_glyph(item)} {item.name}"
+
+
+class WorkspaceSwitcher(FuzzyPicker):
+    """Fuzzy workspace switcher (``Ctrl+W``, spec 03 §6).
+
+    Items are any objects with ``.id`` (team id) and ``.name`` (workspace name).
+    """
+
+    PREFIX = "wsswitch"
+    PLACEHOLDER = "Switch workspace…"
 
 
 class HelpModal(ModalScreen):

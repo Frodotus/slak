@@ -103,6 +103,19 @@ ChannelFinder { align: center middle; background: $surface-dark 40%; }
 }
 #finder-input { border: none; background: $surface-dark; margin: 0 0 1 0; }
 #finder-results { height: auto; max-height: 10; background: $surface; }
+WorkspaceSwitcher { align: center middle; background: $surface-dark 40%; }
+#wsswitch {
+    width: 50%;
+    min-width: 30;
+    max-width: 80;
+    height: auto;
+    max-height: 70%;
+    background: $surface;
+    border: round $hairline;
+    padding: 1 1;
+}
+#wsswitch-input { border: none; background: $surface-dark; margin: 0 0 1 0; }
+#wsswitch-results { height: auto; max-height: 10; background: $surface; }
 HelpModal { align: center middle; background: $surface-dark 40%; }
 #help {
     width: 60%;

@@ -14,12 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Pure ranking for the channel/DM finder (``Ctrl+K``, spec 03 §5).
+"""Pure fuzzy ranking for finder-style overlays (channels ``Ctrl+K`` spec 03 §5,
+workspaces ``Ctrl+W`` §6).
 
-``rank_channels`` is accent-insensitive (via :func:`slak.text.fold`) and stable:
+``rank_by_name`` is accent-insensitive (via :func:`slak.text.fold`) and stable:
 an empty query returns the input untouched (recency order, set by the caller),
 and a non-empty query keeps only matches, ordered by match tier with the
-original recency order preserved within each tier.
+original recency order preserved within each tier. Items are any objects with a
+``.name`` attribute.
 """
 
 from __future__ import annotations
@@ -49,19 +51,19 @@ def _tier(query: str, candidate: str) -> int:
     return _NONE
 
 
-def rank_channels(channels, query: str):
-    """Filter and order ``channels`` (objects with ``.name``) for the finder.
+def rank_by_name(items, query: str):
+    """Filter and order ``items`` (objects with ``.name``) for a fuzzy overlay.
 
-    Empty/whitespace query → ``channels`` unchanged. Otherwise → only matching
-    channels, ordered by match tier; ties keep the incoming (recency) order.
+    Empty/whitespace query → ``items`` unchanged. Otherwise → only matching
+    items, ordered by match tier; ties keep the incoming (recency) order.
     """
     q = fold(query.strip())
     if not q:
-        return list(channels)
+        return list(items)
     scored = []
-    for i, ch in enumerate(channels):
-        tier = _tier(q, fold(ch.name))
+    for i, item in enumerate(items):
+        tier = _tier(q, fold(item.name))
         if tier != _NONE:
-            scored.append((tier, i, ch))
+            scored.append((tier, i, item))
     scored.sort(key=lambda t: (t[0], t[1]))
-    return [ch for _, _, ch in scored]
+    return [item for _, _, item in scored]

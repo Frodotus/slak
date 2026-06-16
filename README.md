@@ -29,9 +29,11 @@ Early MVP scaffold. Working today:
 
 - `Ctrl+B` toggles the sidebar; `Ctrl+T` toggles the thread panel.
 
-Not yet wired: `Ctrl+W` workspace switcher overlay, `Ctrl+N` new-message composer,
-edit/delete message, open-links, theme switching, channel-history nav, MCP server.
-See the spec set for the full roadmap.
+- `Ctrl+W` opens a filterable workspace switcher (beyond the `Alt+1`…`Alt+9` jumps).
+
+Not yet wired: `Ctrl+N` new-message composer, edit/delete message, open-links,
+theme switching, channel-history nav, MCP server. See the spec set for the full
+roadmap.
 
 ## Use a real workspace
 

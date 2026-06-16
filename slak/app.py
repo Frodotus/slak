@@ -29,6 +29,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -75,6 +76,7 @@ from slak.ui.widgets import (
     SearchResultsModal,
     Sidebar,
     ThreadPanel,
+    WorkspaceSwitcher,
 )
 from slak.workspace import WorkspaceRouter
 
@@ -92,6 +94,7 @@ class PyslkApp(App):
         Binding("ctrl+t", "toggle_thread", show=False),
         Binding("ctrl+b", "toggle_sidebar", show=False),
         Binding("ctrl+k", "find_channel", show=False, priority=True),
+        Binding("ctrl+w", "switch_workspace_overlay", show=False, priority=True),
         Binding("f1", "help", show=False, priority=True),
         Binding("ctrl+r", "react", show=False),
         Binding("ctrl+f", "search", show=False),
@@ -246,6 +249,20 @@ class PyslkApp(App):
 
     async def action_switch_workspace(self, index: int) -> None:
         if self.router.set_active_index(index):
+            self._refresh_rail()
+            await self._load_active_workspace()
+
+    def action_switch_workspace_overlay(self) -> None:
+        self.run_worker(self._switch_workspace_flow(), exclusive=False)
+
+    async def _switch_workspace_flow(self) -> None:
+        items = []
+        for team_id in self.router.ordered():
+            client = self.router.client(team_id)
+            name = client.team_name if client else team_id
+            items.append(SimpleNamespace(id=team_id, name=name))
+        team_id = await self.push_screen_wait(WorkspaceSwitcher(items))
+        if team_id and self.router.set_active(team_id):
             self._refresh_rail()
             await self._load_active_workspace()
 

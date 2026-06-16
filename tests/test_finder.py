@@ -16,7 +16,7 @@
 
 from types import SimpleNamespace
 
-from slak.finder import rank_channels
+from slak.finder import rank_by_name
 
 
 def ch(name: str):
@@ -29,17 +29,17 @@ def names(result):
 
 def test_empty_query_returns_all_in_recency_order():
     chans = [ch("zebra"), ch("alpha"), ch("middle")]
-    assert names(rank_channels(chans, "")) == ["zebra", "alpha", "middle"]
+    assert names(rank_by_name(chans, "")) == ["zebra", "alpha", "middle"]
 
 
 def test_whitespace_query_is_treated_as_empty():
     chans = [ch("zebra"), ch("alpha")]
-    assert names(rank_channels(chans, "   ")) == ["zebra", "alpha"]
+    assert names(rank_by_name(chans, "   ")) == ["zebra", "alpha"]
 
 
 def test_non_matching_channels_are_excluded():
     chans = [ch("general"), ch("random"), ch("design")]
-    assert names(rank_channels(chans, "xyz")) == []
+    assert names(rank_by_name(chans, "xyz")) == []
 
 
 def test_match_tiers_exact_prefix_substring_subsequence():
@@ -50,7 +50,7 @@ def test_match_tiers_exact_prefix_substring_subsequence():
         ch("des"),          # exact
         ch("dauntless-eng-staging"),  # subsequence d..e..s
     ]
-    assert names(rank_channels(chans, "des")) == [
+    assert names(rank_by_name(chans, "des")) == [
         "des",
         "design",
         "undesirable",
@@ -61,7 +61,7 @@ def test_match_tiers_exact_prefix_substring_subsequence():
 def test_within_tier_preserves_recency_order():
     chans = [ch("eng-platform"), ch("eng-web"), ch("eng-data")]
     # all are prefix matches for "eng"; original order is preserved
-    assert names(rank_channels(chans, "eng")) == [
+    assert names(rank_by_name(chans, "eng")) == [
         "eng-platform",
         "eng-web",
         "eng-data",
@@ -70,14 +70,14 @@ def test_within_tier_preserves_recency_order():
 
 def test_match_is_case_insensitive():
     chans = [ch("General")]
-    assert names(rank_channels(chans, "gen")) == ["General"]
+    assert names(rank_by_name(chans, "gen")) == ["General"]
 
 
 def test_match_is_accent_insensitive():
     chans = [ch("Café-eng")]
-    assert names(rank_channels(chans, "cafe")) == ["Café-eng"]
+    assert names(rank_by_name(chans, "cafe")) == ["Café-eng"]
 
 
 def test_subsequence_match():
     chans = [ch("general")]
-    assert names(rank_channels(chans, "grl")) == ["general"]
+    assert names(rank_by_name(chans, "grl")) == ["general"]
