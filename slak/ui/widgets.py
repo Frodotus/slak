@@ -86,7 +86,7 @@ class Rail(Static):
 
 
 def _channel_glyph(ch: RemoteChannel) -> str:
-    return {"dm": "●", "group_dm": "●", "private": "⚿"}.get(ch.type, "#")
+    return {"dm": "●", "group_dm": "●", "private": "🔒"}.get(ch.type, "#")
 
 
 # Synthetic sidebar row that opens the threads view (spec 03 §8).

@@ -44,6 +44,6 @@ def test_reaction_emoji_helper():
 def test_private_channel_uses_lock_glyph():
     from slak.slack import RemoteChannel
     from slak.ui.widgets import _channel_glyph
-    assert _channel_glyph(RemoteChannel("C1", "secret", "private")) == "⚿"
+    assert _channel_glyph(RemoteChannel("C1", "secret", "private")) == "🔒"
     assert _channel_glyph(RemoteChannel("C2", "general", "channel")) == "#"
     assert _channel_glyph(RemoteChannel("D1", "bob", "dm")) == "●"
