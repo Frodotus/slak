@@ -1,0 +1,43 @@
+[project]
+name = "slak"
+version = "0.1.0"
+description = "A modern, non-modal terminal Slack client built on Textual"
+readme = "README.md"
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "textual>=0.80",
+    "httpx>=0.27",
+    "websockets>=12",
+    "tomlkit>=0.13",
+    "wcwidth>=0.2",
+    "Pillow>=10",
+    "emoji-data-python>=1.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "textual-dev>=1.5",
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+]
+
+[project.scripts]
+slak = "slak.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["slak*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.setuptools.package-data]
+slak = ["ui/styles/*.tcss"]

@@ -1,0 +1,80 @@
+# slak — Terminal Slack client
+# Copyright (C) 2026 Toni Leino
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from slak.render import render_message
+
+
+def name_of(uid: str) -> str:
+    return {"U1": "Alice", "U2": "Bob"}.get(uid, uid)
+
+
+def r(text: str) -> str:
+    return render_message(text, name_of)
+
+
+def test_user_mention_resolved():
+    assert r("hi <@U1>") == "hi @Alice"
+
+
+def test_unknown_user_uses_label_then_id():
+    assert r("<@U9|carol>") == "@carol"
+    assert r("<@U9>") == "@U9"
+
+
+def test_channel_reference():
+    assert r("see <#C2|general> please") == "see #general please"
+
+
+def test_broadcasts():
+    assert r("<!here> heads up") == "@here heads up"
+    assert r("<!subteam^S1|@team> ping") == "@team ping"
+
+
+def test_links_use_label_or_url():
+    assert r("<https://x.io|the site>") == "the site"
+    assert r("<https://x.io>") == "https://x.io"
+
+
+def test_html_entities_unescaped():
+    assert r("a &amp; b &lt;tag&gt;") == "a & b <tag>"
+
+
+def test_standard_emoji_rendered_custom_left_as_text():
+    assert r("yo :wave:") == "yo 👋"
+    assert r("lol :thisisfine:") == "lol :thisisfine:"   # custom emoji has no glyph
+
+
+def test_markup_injection_is_neutralised():
+    # a message that looks like Rich markup must not be interpreted
+    assert r("[b]hax[/b]") == "\\[b]hax\\[/b]"
+    assert r("arr[0] = x") == "arr[0] = x"  # harmless brackets left alone
+
+
+def test_bold_and_italic_become_rich_markup():
+    assert r("*hi* _there_") == "[b]hi[/b] [i]there[/i]"
+
+
+def _chip(name):
+    return f"[reverse]:{name}:[/reverse]" if name == "thisisfine" else None
+
+
+def test_custom_render_callback_used_for_known_custom():
+    out = render_message("lol :thisisfine:", name_of, _chip)
+    assert out == "lol [reverse]:thisisfine:[/reverse]"
+
+
+def test_custom_render_none_leaves_shortcode_plain():
+    assert render_message("lol :nope:", name_of, _chip) == "lol :nope:"

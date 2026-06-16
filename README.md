@@ -1,0 +1,59 @@
+# slak
+
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+![License](https://img.shields.io/badge/license-GPLv3-blue)
+
+A modern, **non-modal** terminal Slack client built on [Textual](https://textual.textualize.io/).
+
+> Unofficial. Uses Slack's internal browser protocol and may violate Slack's TOS.
+> Not affiliated with Slack Technologies, LLC.
+
+## Status
+
+Early MVP scaffold. Working today:
+
+- Borderless Textual shell — workspace rail, channel sidebar, message pane, compose.
+- **Non-modal:** compose is focused on launch — just type. `Tab` moves focus; the
+  command palette is `Ctrl+P`.
+- Pluggable `SlackClient` interface with an in-memory **fake** (boots with zero
+  credentials) and a real **`HttpSlackClient`** (browser-cookie auth → Web API:
+  channels, history, send; RTM realtime feed).
+- Token store (`slak --add-workspace`, `--list-workspaces`), SQLite cache
+  (messages + read-state), config (theme resolution + workspace ordering + slugs),
+  accent-insensitive matching.
+
+- Multi-workspace switching (`Alt+1`…`Alt+9`), **`Ctrl+K` fuzzy channel finder**,
+  **`F1` keyboard-shortcut help**, threads, reactions (with inline custom-emoji
+  images on kitty), in-channel and workspace search, `@`/`:` autocomplete,
+  desktop notifications, presence/DND.
+
+Not yet wired: `Ctrl+W` workspace switcher overlay, `Ctrl+N` new-message composer,
+`Ctrl+B` sidebar toggle, edit/delete message, open-links, theme switching,
+channel-history nav, MCP server. See the spec set for the full roadmap.
+
+## Use a real workspace
+
+```bash
+slak --add-workspace      # paste your browser xoxc token + d cookie
+slak                      # connects to it (falls back to demo if no token)
+slak --demo               # always use the seeded demo workspace
+```
+
+## Develop
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e ".[dev]"
+
+python -m slak                      # run against a seeded demo workspace
+textual run --dev slak/dev.py       # run with live CSS hot-reload
+textual console                      # (separate terminal) stream logs
+pytest                               # run the test suite
+```
+
+The look is themeable CSS — edit `slak/ui/styles/app.tcss` while running under
+`--dev` to restyle instantly.
+
+## License
+
+[GNU General Public License v3.0 or later](LICENSE).

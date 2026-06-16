@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Runtime / local
+slak-debug.log
+*.db
+*.db-wal
+*.db-shm
+
+# Design specs (not tracked)
+specs/

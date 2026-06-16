@@ -1,0 +1,36 @@
+# slak — Terminal Slack client
+# Copyright (C) 2026 Toni Leino
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Dev entry point for hot-reload.
+
+Run with live CSS hot-reload:
+
+    textual run --dev slak/dev.py
+
+Edit ``slak/ui/styles/app.tcss`` while it runs and the UI restyles instantly.
+"""
+
+from slak.app import PyslkApp
+from slak.cache import Cache
+from slak.config import Config
+from slak.slack import demo_client
+from slak.workspace import WorkspaceRouter
+
+app = PyslkApp(
+    router=WorkspaceRouter.single(demo_client()),
+    cache=Cache.open(":memory:"),
+    config=Config(),
+)
