@@ -132,3 +132,12 @@ def test_reply_count_round_trips_through_cache():
     assert to_cache_message("T1", "C1", rm).reply_count == 4
     from slak.cache import Message
     assert to_remote_message(Message("1.0", "C1", "T1", reply_count=4)).reply_count == 4
+
+
+def test_to_remote_message_recovers_username_from_raw_json():
+    import json
+    from slak.cache import Message
+    from slak.services import to_remote_message
+    raw = json.dumps({"bot_id": "B1", "username": "CI Bot", "text": "x"})
+    rm = to_remote_message(Message("1.0", "C1", "T1", user_id="B1", raw_json=raw))
+    assert rm.username == "CI Bot"

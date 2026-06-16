@@ -219,3 +219,21 @@ def test_thread_indicator_shown_for_messages_with_replies():
     assert "3 replies" in pane._body(RemoteMessage("1.0", "u", "parent", reply_count=3))
     assert "1 reply" in pane._body(RemoteMessage("2.0", "u", "p", reply_count=1))
     assert "repl" not in pane._body(RemoteMessage("3.0", "u", "no thread"))
+
+
+def test_bot_message_uses_username_not_raw_id():
+    from slak.slack import RemoteMessage
+    from slak.ui.widgets import MessagePane
+    pane = MessagePane()  # name_of defaults to str -> ids resolve to themselves
+    body = pane._body(RemoteMessage("1.0", "B123", "deploy ok", username="GitHub"))
+    assert "GitHub" in body
+    assert "B123" not in body
+
+
+def test_human_message_still_uses_resolved_name():
+    from slak.slack import RemoteMessage
+    from slak.ui.widgets import MessagePane
+    pane = MessagePane()
+    pane._name_of = lambda uid: {"U1": "alice"}.get(uid, uid)
+    body = pane._body(RemoteMessage("1.0", "U1", "hi", username="ignored"))
+    assert "alice" in body  # resolved name wins over the username override

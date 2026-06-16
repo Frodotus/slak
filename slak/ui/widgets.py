@@ -315,7 +315,12 @@ class MessagePane(VerticalScroll, can_focus=True):
             w.set_class(i == self._selected, "-selected")
 
     def _body(self, m: RemoteMessage) -> str:
-        author = escape(self._name_of(m.user_id))
+        resolved = self._name_of(m.user_id)
+        # bots/apps have no real user — fall back to the message's username
+        # override when the id didn't resolve to a known display name
+        if resolved == m.user_id and getattr(m, "username", ""):
+            resolved = m.username
+        author = escape(resolved)
         text = render_message(m.text, self._name_of, self._custom_render)
         body = f"[b]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{text}"
         extras = (

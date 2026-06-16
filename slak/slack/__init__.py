@@ -74,6 +74,7 @@ class RemoteMessage:
     raw_json: str = ""
     reactions: list[Reaction] = field(default_factory=list)
     reply_count: int = 0  # thread replies (parent messages only)
+    username: str = ""  # display-name override for bot/app messages
 
 
 @dataclass

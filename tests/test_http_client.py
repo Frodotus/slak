@@ -356,3 +356,13 @@ async def test_list_custom_emoji_parses():
     res = await make_client(handler).list_custom_emoji()
     assert seen["url"].endswith("/api/emoji.list")
     assert res["thisisfine"] == "https://e/fine.png"
+
+
+async def test_history_captures_bot_username():
+    def handler(request):
+        return httpx.Response(200, json={"ok": True, "messages": [
+            {"ts": "1.0", "bot_id": "B1", "username": "GitHub", "text": "deploy"},
+        ]})
+    msgs = await make_client(handler).history("C1")
+    assert msgs[0].user_id == "B1"
+    assert msgs[0].username == "GitHub"

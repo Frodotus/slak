@@ -23,6 +23,7 @@ reconnection backoff schedule. The app composes these; they hold no UI state.
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Awaitable, Callable, Iterator
 
 from slak.cache import Cache, Message
@@ -74,6 +75,17 @@ def format_mpdm(name: str, lookup=None) -> str:
     return ", ".join(displays)
 
 
+def _username_from_raw(raw_json: str) -> str:
+    """Bot/app display-name override stored in a message's raw payload."""
+    if not raw_json:
+        return ""
+    try:
+        d = json.loads(raw_json)
+    except (ValueError, TypeError):
+        return ""
+    return d.get("username") or d.get("bot_profile", {}).get("name", "")
+
+
 def to_remote_message(m: Message) -> RemoteMessage:
     return RemoteMessage(
         ts=m.ts,
@@ -82,6 +94,7 @@ def to_remote_message(m: Message) -> RemoteMessage:
         thread_ts=m.thread_ts,
         reply_count=m.reply_count,
         raw_json=m.raw_json,
+        username=_username_from_raw(m.raw_json),
     )
 
 
