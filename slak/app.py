@@ -668,7 +668,7 @@ class PyslkApp(App):
         header = f"[b]{glyph_for_type(ctype)} {escape(name)}[/]"
         topic = self._channel_topics.get(channel_id, "")
         if topic:
-            header += f"  [dim]{escape(topic)}[/dim]"
+            header += f"  [dim]│  {escape(topic)}[/dim]"
         self.query_one("#header", Static).update(header)
 
     async def open_channel(self, channel_id: str, record_history: bool = True) -> None:
