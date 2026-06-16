@@ -80,6 +80,26 @@ def test_unknown_block_type():
     assert "[unsupported block: wizardry]" in out
 
 
+def test_rich_text_block_is_not_shown_as_unsupported():
+    # rich_text is how normal messages carry their body; the `text` field already
+    # holds it, so the block renders nothing (no noise, no duplication).
+    lines = render_extras(
+        json.dumps({"blocks": [{"type": "rich_text", "elements": []}]}),
+        name_of=str,
+    )
+    assert lines == []
+
+
+def test_message_with_text_and_rich_text_renders_text_once():
+    from slak.slack import RemoteMessage
+    from slak.ui.widgets import MessagePane
+
+    raw = json.dumps({"blocks": [{"type": "rich_text", "elements": []}]})
+    body = MessagePane()._body(RemoteMessage("1.0", "u", "hello world", raw_json=raw))
+    assert "hello world" in body
+    assert "unsupported" not in body
+
+
 def test_message_pane_body_includes_blocks():
     from slak.slack import RemoteMessage
     from slak.ui.widgets import MessagePane

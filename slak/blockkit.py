@@ -102,6 +102,11 @@ def _render_blocks(
         if not isinstance(b, dict):
             continue
         typ = b.get("type")
+        if typ == "rich_text":
+            # The standard block on normal messages; its content is already in
+            # the message's `text` field, so rendering it would duplicate (and
+            # spam "[unsupported block]"). Covered by text — emit nothing.
+            continue
         if typ == "header":
             lines.append(f"[b]{escape(b.get('text', {}).get('text', ''))}[/]")
         elif typ == "section":
