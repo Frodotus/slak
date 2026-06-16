@@ -39,3 +39,11 @@ def test_reaction_emoji_helper():
     pane = _pane()
     assert pane._reaction_emoji("thisisfine") == ":thisisfine:"
     assert pane._reaction_emoji("+1") == "👍"
+
+
+def test_private_channel_uses_lock_glyph():
+    from slak.slack import RemoteChannel
+    from slak.ui.widgets import _channel_glyph
+    assert _channel_glyph(RemoteChannel("C1", "secret", "private")) == "🔒"
+    assert _channel_glyph(RemoteChannel("C2", "general", "channel")) == "#"
+    assert _channel_glyph(RemoteChannel("D1", "bob", "dm")) == "●"
