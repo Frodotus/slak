@@ -172,6 +172,7 @@ class PyslkApp(App):
         self._presence: dict[str, tuple[str, float]] = {}  # team -> (presence, dnd_end)
         self._typing: dict[str, float] = {}  # user_id -> expiry (monotonic)
         self._typing_timer = None
+        self._last_typing_sent: float = 0.0  # monotonic, for ≥3s throttle
         self._completion_active: bool = False
         self._completion_at: int = -1
         self._completion_kind: str = ""  # "@" or ":"
@@ -889,6 +890,21 @@ class PyslkApp(App):
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "compose":
             self._update_completion(event.input)
+            if event.value:
+                self._maybe_send_typing()
+
+    def _maybe_send_typing(self) -> None:
+        """Send our own user_typing for the active channel, throttled to ≥3s."""
+        client = self.client
+        if client is None or not self.active_channel:
+            return
+        if not self.config.typing_indicators:
+            return
+        now = time.monotonic()
+        if now - self._last_typing_sent < 3.0:
+            return
+        self._last_typing_sent = now
+        self.run_worker(client.send_typing(self.active_channel), exclusive=False)
 
     def _update_completion(self, inp: Input) -> None:
         value, cursor = inp.value, inp.cursor_position

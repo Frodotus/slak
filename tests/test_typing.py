@@ -80,3 +80,38 @@ async def test_prune_removes_expired_typers():
         app._prune_typing()
         assert app._typing == {}
         assert app.query_one("#typing", Static).display is False
+
+
+async def test_typing_into_compose_sends_throttled_user_typing():
+    app = make_app()
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        await pilot.press("h")
+        for _ in range(2):
+            await pilot.pause()
+        assert app.client.typing_sent == ["C1"]
+        await pilot.press("i")  # immediate second keystroke -> throttled
+        for _ in range(2):
+            await pilot.pause()
+        assert app.client.typing_sent == ["C1"]  # still one
+
+
+async def test_no_outbound_typing_when_disabled():
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("1.0", "u", "hi")]},
+    )
+    app = PyslkApp(
+        router=WorkspaceRouter.single(client),
+        cache=Cache.open(":memory:"),
+        config=Config.loads("[general]\ntyping_indicators = false\n"),
+    )
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        await pilot.press("h")
+        for _ in range(2):
+            await pilot.pause()
+        assert app.client.typing_sent == []

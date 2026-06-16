@@ -202,6 +202,8 @@ class HttpSlackClient:
             timeout=30.0,
         )
         self._events: asyncio.Queue[Event] = asyncio.Queue()
+        self._ws = None  # active RTM websocket (set while connected)
+        self._rtm_msg_id = 0
 
     async def aclose(self) -> None:
         await self._http.aclose()
@@ -313,6 +315,19 @@ class HttpSlackClient:
                 out.append(item["channel"])
         return out
 
+    async def send_typing(self, channel_id: str) -> None:
+        """Send an RTM ``typing`` frame (best-effort; no-op if disconnected)."""
+        ws = self._ws
+        if ws is None:
+            return
+        self._rtm_msg_id += 1
+        try:
+            await ws.send(json.dumps(
+                {"id": self._rtm_msg_id, "type": "typing", "channel": channel_id}
+            ))
+        except Exception:
+            pass
+
     async def open_conversation(self, user_ids: list[str]) -> RemoteChannel:
         data = await self._call("conversations.open", users=",".join(user_ids))
         ch = data.get("channel", {})
@@ -394,11 +409,15 @@ class HttpSlackClient:
 
         data = await self._call("rtm.connect")
         async with websockets.connect(data["url"]) as ws:
+            self._ws = ws  # expose for outbound frames (typing)
             await self._events.put(Connected(team_id=self.team_id))
-            async for raw in ws:
-                event = parse_rtm_event(json.loads(raw))
-                if event is not None:
-                    await self._events.put(event)
+            try:
+                async for raw in ws:
+                    event = parse_rtm_event(json.loads(raw))
+                    if event is not None:
+                        await self._events.put(event)
+            finally:
+                self._ws = None
 
     async def start_realtime(self) -> None:
         """Maintain the RTM connection with exponential-backoff reconnection."""

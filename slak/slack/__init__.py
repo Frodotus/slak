@@ -235,6 +235,8 @@ class SlackClient(Protocol):
 
     async def list_stars(self) -> list[str]: ...
 
+    async def send_typing(self, channel_id: str) -> None: ...
+
     async def search(self, query: str) -> list[SearchResult]: ...
 
     async def list_custom_emoji(self) -> dict[str, str]: ...
@@ -277,6 +279,7 @@ class FakeSlackClient:
         self._self_user = "Uself"
         self.self_user_id = "Uself"
         self.marks: list[tuple[str, str]] = []
+        self.typing_sent: list[str] = []
         self.presence = "auto"
         self.snoozes: list[int] = []
         self.dnd_ended = False
@@ -380,6 +383,9 @@ class FakeSlackClient:
 
     async def list_stars(self) -> list[str]:
         return list(self._stars)
+
+    async def send_typing(self, channel_id: str) -> None:
+        self.typing_sent.append(channel_id)
 
     async def list_users(self) -> list[RemoteUser]:
         return list(self._users.values())
