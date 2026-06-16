@@ -59,6 +59,18 @@ async def test_sidebar_groups_channels_into_sections():
             assert sidebar.get_child_by_id(cid, ListItem) is not None
 
 
+async def test_section_headers_have_spacing():
+    app = make_app()
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        sidebar = app.query_one("#sidebar", Sidebar)
+        header_id = next(i for i, n in sidebar._section_ids.items() if n == "Engineering")
+        item = sidebar.get_child_by_id(header_id, ListItem)
+        assert "section-header" in item.classes
+        assert item.styles.margin.top == 1  # a blank line above each section
+
+
 async def test_collapsing_a_section_hides_its_channels():
     app = make_app()
     async with app.run_test() as pilot:

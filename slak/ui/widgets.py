@@ -133,7 +133,10 @@ class Sidebar(ListView):
                 self._section_ids[item_id] = name
                 arrow = "▸" if name in collapsed else "▾"
                 self.append(
-                    ListItem(Static(f"[b]{arrow} {name}[/]"), id=item_id)
+                    ListItem(
+                        Static(f"[b]{arrow} {name}[/]"),
+                        id=item_id, classes="section-header",
+                    )
                 )
                 if name in collapsed:
                     continue
