@@ -246,6 +246,7 @@ class HttpSlackClient:
             RemoteChannel(
                 id=c["id"], name=c.get("name", ""), type=_channel_type(c),
                 user=c.get("user", ""),
+                topic=c.get("topic", {}).get("value", ""),
             )
             for c in data.get("channels", [])
             if not c.get("is_archived")  # belt-and-suspenders vs the API param

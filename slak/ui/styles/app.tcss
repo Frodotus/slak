@@ -48,7 +48,6 @@ Screen {
     height: 1;
     padding: 0 2;
     color: $text;
-    text-style: bold;
     background: $bg;
 }
 #header-rule { height: 1; color: $hairline; background: $bg; }

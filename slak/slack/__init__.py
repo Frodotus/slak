@@ -63,6 +63,7 @@ class RemoteChannel:
     name: str
     type: str = "channel"  # channel | private | dm | group_dm
     user: str = ""  # for DMs: the peer's user id (name resolved from it)
+    topic: str = ""  # channel topic shown in the header
 
 
 @dataclass

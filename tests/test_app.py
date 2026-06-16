@@ -787,3 +787,19 @@ async def test_bot_id_message_resolves_name_via_bots_info():
         for _ in range(5):
             await pilot.pause()
         assert app._name_of("B1") == "CIBot"  # resolved via bots.info
+
+
+async def test_channel_header_shows_name_and_topic():
+    from textual.widgets import Static
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general", topic="Daily standup")],
+        history={"C1": [RemoteMessage("1.0", "u", "hi")]},
+    )
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"), config=Config())
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        header = str(app.query_one("#header", Static).render())
+        assert "general" in header
+        assert "Daily standup" in header

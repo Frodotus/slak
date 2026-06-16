@@ -95,9 +95,11 @@ from slak.ui.widgets import (
     ThreadList,
     ThreadPanel,
     WorkspaceSwitcher,
+    glyph_for_type,
     set_private_glyph,
 )
 from slak.fonts import use_nerd_glyphs
+from rich.markup import escape
 from slak.ui.widgets import THREADS_ROW_ID
 from slak.sections import layout as section_layout, order_native_sections
 from slak.mcp import build_snapshot, default_socket_path, message_dict, serve as serve_mcp
@@ -154,6 +156,7 @@ class PyslkApp(App):
         self.active_channel: str | None = None
         self._nav: dict[str, NavHistory] = {}  # team_id -> channel back/forward
         self._channel_names: dict[str, str] = {}
+        self._channel_topics: dict[str, str] = {}  # channel_id -> topic
         self._chan_meta: dict[str, dict[str, tuple[str, str]]] = {}  # team->cid->(name,type)
         self._names: dict[str, dict[str, str]] = {}  # team_id -> {user_id: display}
         self._handles: dict[str, dict[str, str]] = {}  # team_id -> {handle: display}
@@ -416,6 +419,7 @@ class PyslkApp(App):
         channels = await client.list_channels()
         self._resolve_dm_names(client.team_id, channels)
         self._channel_names = {ch.id: ch.name for ch in channels}
+        self._channel_topics = {ch.id: ch.topic for ch in channels if ch.topic}
         self._upsert_channels(client.team_id, channels)
         self._sidebar_channels = channels
         await self._load_native_sections(client)
@@ -656,6 +660,17 @@ class PyslkApp(App):
         self.query_one("#messages", MessagePane).display = True
         self.query_one("#compose", Input).display = True
 
+    def _update_header(self, channel_id: str) -> None:
+        team = self.router.active_team_id() or ""
+        meta = self._chan_meta.get(team, {}).get(channel_id)
+        ctype = meta[1] if meta else "channel"
+        name = self._channel_names.get(channel_id, channel_id)
+        header = f"[b]{glyph_for_type(ctype)} {escape(name)}[/]"
+        topic = self._channel_topics.get(channel_id, "")
+        if topic:
+            header += f"  [dim]{escape(topic)}[/dim]"
+        self.query_one("#header", Static).update(header)
+
     async def open_channel(self, channel_id: str, record_history: bool = True) -> None:
         client = self.client
         if client is None:
@@ -669,8 +684,7 @@ class PyslkApp(App):
             self.cache.record_visit(team, channel_id)  # remember last-used channel
             if record_history:
                 self._nav_for(team).visit(channel_id)
-        name = self._channel_names.get(channel_id, channel_id)
-        self.query_one("#header", Static).update(f"#{name}")
+        self._update_header(channel_id)
         # cache-first: render what we have instantly…
         cached = [to_remote_message(m) for m in self.cache.get_messages(channel_id)]
         self.query_one("#messages", MessagePane).set_messages(

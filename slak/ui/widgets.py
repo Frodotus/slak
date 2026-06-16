@@ -96,8 +96,12 @@ def set_private_glyph(use_nerd: bool) -> None:
     _private_glyph = NERD_LOCK if use_nerd else FALLBACK_LOCK
 
 
+def glyph_for_type(channel_type: str) -> str:
+    return {"dm": "●", "group_dm": "●", "private": _private_glyph}.get(channel_type, "#")
+
+
 def _channel_glyph(ch: RemoteChannel) -> str:
-    return {"dm": "●", "group_dm": "●", "private": _private_glyph}.get(ch.type, "#")
+    return glyph_for_type(ch.type)
 
 
 # Synthetic sidebar row that opens the threads view (spec 03 §8).

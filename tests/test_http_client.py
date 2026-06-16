@@ -382,3 +382,13 @@ async def test_list_channels_excludes_archived():
         ]})
     chans = await make_client(handler).list_channels()
     assert [c.id for c in chans] == ["C1"]  # archived dropped
+
+
+async def test_list_channels_captures_topic():
+    def handler(request):
+        return httpx.Response(200, json={"ok": True, "channels": [
+            {"id": "C1", "name": "general", "is_channel": True,
+             "topic": {"value": "Daily standup"}},
+        ]})
+    chans = await make_client(handler).list_channels()
+    assert chans[0].topic == "Daily standup"
