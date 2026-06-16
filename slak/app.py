@@ -95,7 +95,9 @@ from slak.ui.widgets import (
     ThreadList,
     ThreadPanel,
     WorkspaceSwitcher,
+    set_private_glyph,
 )
+from slak.fonts import use_nerd_glyphs
 from slak.ui.widgets import THREADS_ROW_ID
 from slak.sections import layout as section_layout, order_native_sections
 from slak.mcp import build_snapshot, default_socket_path, message_dict, serve as serve_mcp
@@ -222,6 +224,7 @@ class PyslkApp(App):
         yield Static("", id="status")
 
     async def on_mount(self) -> None:
+        set_private_glyph(use_nerd_glyphs(self.config.nerd_font))
         self._init_emoji_images()
         for pane_id in ("#messages", "#thread-messages"):
             try:

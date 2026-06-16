@@ -85,10 +85,19 @@ class Rail(Static):
         self.update("\n\n".join(lines))
 
 
+NERD_LOCK = ""  # Nerd Font padlock: single-width, matches slk
+FALLBACK_LOCK = "🔒"  # broadly-supported lock when no Nerd Font (wider)
+_private_glyph = NERD_LOCK
+
+
+def set_private_glyph(use_nerd: bool) -> None:
+    """Choose the private-channel glyph: Nerd padlock vs the fallback lock."""
+    global _private_glyph
+    _private_glyph = NERD_LOCK if use_nerd else FALLBACK_LOCK
+
+
 def _channel_glyph(ch: RemoteChannel) -> str:
-    # private uses the Nerd Font padlock (U+F023): a single-width lock, matching
-    # slk. Needs a Nerd Font installed (as slk assumes).
-    return {"dm": "●", "group_dm": "●", "private": ""}.get(ch.type, "#")
+    return {"dm": "●", "group_dm": "●", "private": _private_glyph}.get(ch.type, "#")
 
 
 # Synthetic sidebar row that opens the threads view (spec 03 §8).
