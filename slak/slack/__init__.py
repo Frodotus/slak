@@ -83,6 +83,15 @@ class RemoteUser:
 
 
 @dataclass
+class ThreadSub:
+    """A subscribed thread from ``subscriptions.thread.list`` (spec 02 §7)."""
+
+    channel_id: str
+    thread_ts: str
+    last_read: str = ""
+
+
+@dataclass
 class SearchResult:
     channel_id: str
     channel_name: str
@@ -183,6 +192,8 @@ class SlackClient(Protocol):
 
     async def open_conversation(self, user_ids: list[str]) -> RemoteChannel: ...
 
+    async def list_thread_subscriptions(self) -> list["ThreadSub"]: ...
+
     async def search(self, query: str) -> list[SearchResult]: ...
 
     async def list_custom_emoji(self) -> dict[str, str]: ...
@@ -207,6 +218,7 @@ class FakeSlackClient:
         history: dict[str, list[RemoteMessage]] | None = None,
         users: list[RemoteUser] | None = None,
         custom_emoji: dict[str, str] | None = None,
+        thread_subs: list["ThreadSub"] | None = None,
     ):
         self.team_id = team_id
         self.team_name = team_name
@@ -215,6 +227,7 @@ class FakeSlackClient:
         self._history: dict[str, list[RemoteMessage]] = history or {}
         self._users = {u.id: u for u in (users or [])}
         self._custom_emoji = custom_emoji or {}
+        self._thread_subs = list(thread_subs or [])
         self._events: asyncio.Queue[Event] = asyncio.Queue()
         self._self_user = "Uself"
         self.self_user_id = "Uself"
@@ -309,6 +322,9 @@ class FakeSlackClient:
             self._channels.append(ch)
         self._history.setdefault(cid, [])
         return ch
+
+    async def list_thread_subscriptions(self) -> list["ThreadSub"]:
+        return list(self._thread_subs)
 
     async def list_users(self) -> list[RemoteUser]:
         return list(self._users.values())

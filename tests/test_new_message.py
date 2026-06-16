@@ -46,6 +46,42 @@ def make_http(handler):
     return HttpSlackClient(tok, transport=httpx.MockTransport(handler))
 
 
+async def test_fake_list_thread_subscriptions_returns_seeded():
+    from slak.slack import ThreadSub
+
+    c = FakeSlackClient(thread_subs=[ThreadSub("C1", "100.0", last_read="100.0")])
+    subs = await c.list_thread_subscriptions()
+    assert [(s.channel_id, s.thread_ts) for s in subs] == [("C1", "100.0")]
+
+
+async def test_http_list_thread_subscriptions_paginates():
+    pages = [
+        {
+            "ok": True,
+            "threads": [{"root_msg": {"channel": "C1", "ts": "100.0"}, "last_read": "99.0"}],
+            "response_metadata": {"next_cursor": "NEXT"},
+        },
+        {
+            "ok": True,
+            "threads": [{"root_msg": {"channel": "C2", "ts": "200.0"}, "last_read": "200.0"}],
+            "response_metadata": {"next_cursor": ""},
+        },
+    ]
+    calls = {"n": 0}
+
+    def handler(request):
+        page = pages[calls["n"]]
+        calls["n"] += 1
+        return httpx.Response(200, json=page)
+
+    subs = await make_http(handler).list_thread_subscriptions()
+    assert calls["n"] == 2  # followed the cursor
+    assert [(s.channel_id, s.thread_ts, s.last_read) for s in subs] == [
+        ("C1", "100.0", "99.0"),
+        ("C2", "200.0", "200.0"),
+    ]
+
+
 async def test_http_open_conversation_calls_conversations_open():
     seen = {}
 

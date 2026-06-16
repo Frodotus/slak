@@ -67,6 +67,16 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_ts, channel_id);
+
+CREATE TABLE IF NOT EXISTS thread_subscriptions (
+    workspace_id  TEXT NOT NULL,
+    channel_id    TEXT NOT NULL,
+    thread_ts     TEXT NOT NULL,
+    last_read     TEXT NOT NULL DEFAULT '',
+    active        INTEGER NOT NULL DEFAULT 1,
+    updated_at    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (workspace_id, channel_id, thread_ts)
+);
 """
 
 # Optional full-text index; skipped gracefully if the sqlite build lacks FTS5.
@@ -121,6 +131,30 @@ class Message:
 class ReadState:
     last_read_ts: str
     has_unread: bool
+
+
+@dataclass
+class ThreadSubscription:
+    workspace_id: str
+    channel_id: str
+    thread_ts: str
+    last_read: str = ""
+    active: bool = True
+
+
+@dataclass
+class ThreadOverview:
+    """One row of the threads view (spec 02 §7 / 03 §8)."""
+
+    channel_id: str
+    channel_name: str
+    thread_ts: str
+    parent_user_id: str
+    parent_text: str
+    reply_count: int
+    last_reply_ts: str
+    last_reply_user_id: str
+    unread: bool
 
 
 class Cache:
@@ -248,6 +282,98 @@ class Cache:
             (channel_id, ts),
         )
         self._conn.commit()
+
+    # --- thread subscriptions (spec 02 §7) --------------------------------
+
+    def upsert_thread_subscription(self, sub: "ThreadSubscription") -> None:
+        self._conn.execute(
+            """
+            INSERT INTO thread_subscriptions
+                (workspace_id, channel_id, thread_ts, last_read, active)
+            VALUES (?,?,?,?,?)
+            ON CONFLICT(workspace_id, channel_id, thread_ts) DO UPDATE SET
+                last_read=excluded.last_read, active=excluded.active
+            """,
+            (sub.workspace_id, sub.channel_id, sub.thread_ts, sub.last_read,
+             int(sub.active)),
+        )
+        self._conn.commit()
+
+    def delete_thread_subscription(self, workspace_id: str, channel_id: str,
+                                   thread_ts: str) -> None:
+        self._conn.execute(
+            "DELETE FROM thread_subscriptions "
+            "WHERE workspace_id=? AND channel_id=? AND thread_ts=?",
+            (workspace_id, channel_id, thread_ts),
+        )
+        self._conn.commit()
+
+    def list_active_thread_subscriptions(
+        self, workspace_id: str
+    ) -> list["ThreadSubscription"]:
+        rows = self._conn.execute(
+            "SELECT * FROM thread_subscriptions WHERE workspace_id=? AND active=1",
+            (workspace_id,),
+        ).fetchall()
+        return [
+            ThreadSubscription(
+                workspace_id=r["workspace_id"], channel_id=r["channel_id"],
+                thread_ts=r["thread_ts"], last_read=r["last_read"],
+                active=bool(r["active"]),
+            )
+            for r in rows
+        ]
+
+    def reconcile_thread_subscriptions(
+        self, workspace_id: str, fresh: list["ThreadSubscription"]
+    ) -> None:
+        """Upsert the fresh set; tombstone (active=0) any active row missing from it."""
+        keep = {(s.channel_id, s.thread_ts) for s in fresh}
+        for s in fresh:
+            self.upsert_thread_subscription(s)
+        for existing in self.list_active_thread_subscriptions(workspace_id):
+            if (existing.channel_id, existing.thread_ts) not in keep:
+                self._conn.execute(
+                    "UPDATE thread_subscriptions SET active=0 "
+                    "WHERE workspace_id=? AND channel_id=? AND thread_ts=?",
+                    (workspace_id, existing.channel_id, existing.thread_ts),
+                )
+        self._conn.commit()
+
+    def threads_overview(self, workspace_id: str) -> list["ThreadOverview"]:
+        """Subscribed threads with parent + reply aggregation, newest-reply first."""
+        rows: list[ThreadOverview] = []
+        for sub in self.list_active_thread_subscriptions(workspace_id):
+            parent = self._conn.execute(
+                "SELECT user_id, text FROM messages "
+                "WHERE channel_id=? AND ts=? AND is_deleted=0",
+                (sub.channel_id, sub.thread_ts),
+            ).fetchone()
+            replies = self._conn.execute(
+                "SELECT ts, user_id FROM messages "
+                "WHERE channel_id=? AND thread_ts=? AND ts<>? AND is_deleted=0 "
+                "ORDER BY CAST(ts AS REAL) ASC",
+                (sub.channel_id, sub.thread_ts, sub.thread_ts),
+            ).fetchall()
+            name_row = self._conn.execute(
+                "SELECT name FROM channels WHERE id=?", (sub.channel_id,)
+            ).fetchone()
+            last_ts = replies[-1]["ts"] if replies else ""
+            rows.append(
+                ThreadOverview(
+                    channel_id=sub.channel_id,
+                    channel_name=name_row["name"] if name_row else sub.channel_id,
+                    thread_ts=sub.thread_ts,
+                    parent_user_id=parent["user_id"] if parent else "",
+                    parent_text=parent["text"] if parent else "",
+                    reply_count=len(replies),
+                    last_reply_ts=last_ts,
+                    last_reply_user_id=replies[-1]["user_id"] if replies else "",
+                    unread=bool(last_ts) and last_ts > sub.last_read,
+                )
+            )
+        rows.sort(key=lambda r: r.last_reply_ts, reverse=True)
+        return rows
 
     def get_messages(self, channel_id: str, limit: int = 50) -> list[Message]:
         """Return up to ``limit`` newest messages, oldest-first."""

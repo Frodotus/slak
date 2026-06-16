@@ -46,6 +46,7 @@ from slak.slack import (
     RemoteUser,
     SearchResult,
     SlackError,
+    ThreadSub,
     Token,
 )
 
@@ -265,6 +266,29 @@ class HttpSlackClient:
         ch = data.get("channel", {})
         ctype = "dm" if len(user_ids) == 1 else "group_dm"
         return RemoteChannel(ch.get("id", ""), ch.get("name", ""), ctype)
+
+    async def list_thread_subscriptions(self) -> list[ThreadSub]:
+        """Forward-cursor paginate ``subscriptions.thread.list`` (cap 1000)."""
+        subs: list[ThreadSub] = []
+        cursor = ""
+        while len(subs) < 1000:
+            params = {"limit": 100}
+            if cursor:
+                params["cursor"] = cursor
+            data = await self._call("subscriptions.thread.list", **params)
+            for t in data.get("threads", []):
+                root = t.get("root_msg", {})
+                subs.append(
+                    ThreadSub(
+                        channel_id=root.get("channel", ""),
+                        thread_ts=root.get("ts", ""),
+                        last_read=t.get("last_read", ""),
+                    )
+                )
+            cursor = data.get("response_metadata", {}).get("next_cursor", "")
+            if not cursor:
+                break
+        return subs
 
     async def search(self, query: str) -> list[SearchResult]:
         data = await self._call("search.messages", query=query, count=50)
