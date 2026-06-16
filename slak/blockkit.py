@@ -194,16 +194,20 @@ def _render_blocks(
                     lines.append(f"[dim][{escape(_control_label(acc))}][/dim]")
                     interactive = True
         elif typ == "context":
-            parts = []
+            text_parts, image_lines = [], []
             for e in b.get("elements", []):
                 if e.get("type") == "image":
-                    parts.append(
+                    # images render as their own (possibly multi-row) line so
+                    # every row aligns at column 0
+                    image_lines.append(
                         _img(e.get("image_url", ""), e.get("alt_text", "image"),
                              image_render)
                     )
                 else:
-                    parts.append(_text(e, name_of, custom_render))
-            lines.append(f"[dim]{'  '.join(parts)}[/dim]")
+                    text_parts.append(_text(e, name_of, custom_render))
+            if text_parts:
+                lines.append(f"[dim]{'  '.join(text_parts)}[/dim]")
+            lines.extend(image_lines)
         elif typ == "divider":
             lines.append(f"[dim]{_RULE}[/dim]")
         elif typ == "image":
@@ -244,7 +248,8 @@ def _render_attachments(
             lines.append(f"{bar} " + "    ".join(cells))
         for key in ("image_url", "thumb_url"):
             if a.get(key):
-                lines.append(f"{bar} " + _img(a[key], a.get("title", "image"), image_render))
+                # own line, no bar prefix — keeps every image row aligned at col 0
+                lines.append(_img(a[key], a.get("title", "image"), image_render))
         if a.get("footer"):
             lines.append(f"[dim]{escape(a['footer'])}[/dim]")
     return lines

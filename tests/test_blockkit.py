@@ -175,6 +175,27 @@ def test_image_block_uses_render_callback_when_available():
     assert any("chart" in ln for ln in lines)
 
 
+def test_attachment_image_is_on_its_own_line_without_bar_prefix():
+    # a multi-row image placeholder must start at column 0 (every row aligned),
+    # not be prefixed by the attachment's "▎" bar on the first row only.
+    placeholder = "ROW0\nROW1\nROW2"
+    raw = json.dumps({"attachments": [
+        {"color": "danger", "title": "t", "image_url": "u"},
+    ]})
+    lines = render_extras(raw, name_of=str, image_render=lambda url: placeholder)
+    assert placeholder in lines  # exact, unprefixed entry
+
+
+def test_context_image_is_on_its_own_line():
+    placeholder = "IMG0\nIMG1"
+    raw = json.dumps({"blocks": [{"type": "context", "elements": [
+        {"type": "mrkdwn", "text": "via bot"},
+        {"type": "image", "image_url": "u", "alt_text": "icon"},
+    ]}]})
+    lines = render_extras(raw, name_of=str, image_render=lambda url: placeholder)
+    assert placeholder in lines  # not inlined with the "via bot" text
+
+
 def test_legacy_attachment_renders_fields_and_color():
     lines = render_extras(json.dumps({
         "attachments": [
