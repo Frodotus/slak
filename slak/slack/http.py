@@ -34,6 +34,8 @@ from slak.slack import (
     AuthError,
     Connected,
     Event,
+    MessageDeleted,
+    MessageEdited,
     NewMessage,
     DndChanged,
     PresenceChanged,
@@ -148,6 +150,18 @@ def parse_rtm_event(data: dict) -> Event | None:
             user_id=data.get("user", ""),
             added=kind == "reaction_added",
         )
+    if kind == "message" and data.get("subtype") == "message_changed":
+        edited = data.get("message", {})
+        return MessageEdited(
+            channel_id=data.get("channel", ""),
+            ts=edited.get("ts", ""),
+            text=edited.get("text", ""),
+        )
+    if kind == "message" and data.get("subtype") == "message_deleted":
+        return MessageDeleted(
+            channel_id=data.get("channel", ""),
+            ts=data.get("deleted_ts", ""),
+        )
     if kind == "message" and not data.get("subtype"):
         return NewMessage(
             channel_id=data.get("channel", ""),
@@ -239,6 +253,12 @@ class HttpSlackClient:
 
     async def mark(self, channel_id: str, ts: str) -> None:
         await self._call("conversations.mark", channel=channel_id, ts=ts)
+
+    async def update_message(self, channel_id: str, ts: str, text: str) -> None:
+        await self._call("chat.update", channel=channel_id, ts=ts, text=text)
+
+    async def delete_message(self, channel_id: str, ts: str) -> None:
+        await self._call("chat.delete", channel=channel_id, ts=ts)
 
     async def search(self, query: str) -> list[SearchResult]:
         data = await self._call("search.messages", query=query, count=50)

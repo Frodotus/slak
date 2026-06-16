@@ -182,6 +182,25 @@ class MessagePane(VerticalScroll, can_focus=True):
                 self._widgets[i].update(self._body(m))
                 return
 
+    def update_text(self, ts: str, text: str) -> None:
+        """Replace a message's body text in place (after an edit)."""
+        for i, m in enumerate(self._messages):
+            if m.ts == ts:
+                m.text = text
+                self._widgets[i].update(self._body(m))
+                return
+
+    def remove_message(self, ts: str) -> None:
+        """Drop a deleted message and keep the selection valid."""
+        for i, m in enumerate(self._messages):
+            if m.ts == ts:
+                self._widgets[i].remove()
+                del self._messages[i]
+                del self._widgets[i]
+                self._selected = min(self._selected, len(self._messages) - 1)
+                self._apply_selection()
+                return
+
     def selected_message(self) -> RemoteMessage | None:
         if 0 <= self._selected < len(self._messages):
             return self._messages[self._selected]
@@ -282,6 +301,32 @@ class ReactionModal(ModalScreen[str]):
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         self.dismiss(event.value.strip())
+
+    def action_cancel(self) -> None:
+        self.dismiss("")
+
+
+class EditModal(ModalScreen[str]):
+    """Edit-message input, prefilled with the current text (``Ctrl+E``, spec 04).
+
+    Dismisses with the edited text, or ``''`` on cancel."""
+
+    BINDINGS = [Binding("escape", "cancel", show=False)]
+
+    def __init__(self, text: str):
+        super().__init__()
+        self._initial = text
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="edit-box"):
+            yield Static("Edit message", id="edit-title")
+            yield Input(value=self._initial, id="edit-input")
+
+    def on_mount(self) -> None:
+        self.query_one("#edit-input", Input).focus()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.dismiss(event.value)
 
     def action_cancel(self) -> None:
         self.dismiss("")

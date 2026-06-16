@@ -33,9 +33,10 @@ Early MVP scaffold. Working today:
   `Alt+←`/`Alt+→` walk channel history back/forward.
 
 - `Ctrl+O` opens link(s) in the selected message (picker when there's more than one).
+- `Ctrl+E` edits your selected message; "Delete message" (palette) removes it.
 
-Not yet wired: `Ctrl+N` new-message composer, edit/delete message, theme
-switching, MCP server. See the spec set for the full roadmap.
+Not yet wired: `Ctrl+N` new-message composer, theme switching, MCP server.
+See the spec set for the full roadmap.
 
 ## Use a real workspace
 

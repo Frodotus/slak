@@ -124,11 +124,67 @@ def test_parse_rtm_ignores_non_message():
     assert parse_rtm_event({"type": "user_typing", "channel": "C1"}) is None
 
 
-def test_parse_rtm_ignores_message_subtypes():
-    # edits/deletes/joins carry a subtype; the basic feed skips them for now.
+def test_parse_rtm_ignores_unhandled_message_subtypes():
+    # joins/leaves carry a subtype we don't surface.
     assert parse_rtm_event(
-        {"type": "message", "subtype": "message_changed", "channel": "C1"}
+        {"type": "message", "subtype": "channel_join", "channel": "C1"}
     ) is None
+
+
+def test_parse_rtm_message_changed():
+    from slak.slack import MessageEdited
+    event = parse_rtm_event(
+        {
+            "type": "message",
+            "subtype": "message_changed",
+            "channel": "C1",
+            "message": {"ts": "5.0", "user": "U1", "text": "edited"},
+        }
+    )
+    assert isinstance(event, MessageEdited)
+    assert (event.channel_id, event.ts, event.text) == ("C1", "5.0", "edited")
+
+
+def test_parse_rtm_message_deleted():
+    from slak.slack import MessageDeleted
+    event = parse_rtm_event(
+        {
+            "type": "message",
+            "subtype": "message_deleted",
+            "channel": "C1",
+            "deleted_ts": "5.0",
+        }
+    )
+    assert isinstance(event, MessageDeleted)
+    assert (event.channel_id, event.ts) == ("C1", "5.0")
+
+
+async def test_update_message_calls_chat_update():
+    seen = {}
+
+    def handler(request):
+        seen["url"] = str(request.url)
+        seen["body"] = request.content.decode()
+        return httpx.Response(200, json={"ok": True})
+
+    await make_client(handler).update_message("C1", "5.0", "new text")
+    assert seen["url"].endswith("/api/chat.update")
+    assert "channel=C1" in seen["body"]
+    assert "ts=5.0" in seen["body"]
+
+
+async def test_delete_message_calls_chat_delete():
+    seen = {}
+
+    def handler(request):
+        seen["url"] = str(request.url)
+        seen["body"] = request.content.decode()
+        return httpx.Response(200, json={"ok": True})
+
+    await make_client(handler).delete_message("C1", "5.0")
+    assert seen["url"].endswith("/api/chat.delete")
+    assert "channel=C1" in seen["body"]
+    assert "ts=5.0" in seen["body"]
 
 
 def test_token_from_auth_test():

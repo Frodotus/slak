@@ -232,6 +232,23 @@ class Cache:
         )
         self._conn.commit()
 
+    def edit_message(self, channel_id: str, ts: str, text: str) -> None:
+        """Update a message's text in place (after an edit)."""
+        self._conn.execute(
+            "UPDATE messages SET text = ?, is_edited = 1 "
+            "WHERE channel_id = ? AND ts = ?",
+            (text, channel_id, ts),
+        )
+        self._conn.commit()
+
+    def delete_message(self, channel_id: str, ts: str) -> None:
+        """Soft-delete a message so it stops appearing in ``get_messages``."""
+        self._conn.execute(
+            "UPDATE messages SET is_deleted = 1 WHERE channel_id = ? AND ts = ?",
+            (channel_id, ts),
+        )
+        self._conn.commit()
+
     def get_messages(self, channel_id: str, limit: int = 50) -> list[Message]:
         """Return up to ``limit`` newest messages, oldest-first."""
         rows = self._conn.execute(

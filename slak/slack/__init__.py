@@ -115,6 +115,19 @@ class ReactionUpdated:
 
 
 @dataclass
+class MessageEdited:
+    channel_id: str
+    ts: str
+    text: str
+
+
+@dataclass
+class MessageDeleted:
+    channel_id: str
+    ts: str
+
+
+@dataclass
 class PresenceChanged:
     presence: str  # "auto" | "away"
 
@@ -125,7 +138,15 @@ class DndChanged:
     end_ts: float
 
 
-Event = NewMessage | Connected | ReactionUpdated | PresenceChanged | DndChanged
+Event = (
+    NewMessage
+    | Connected
+    | ReactionUpdated
+    | MessageEdited
+    | MessageDeleted
+    | PresenceChanged
+    | DndChanged
+)
 
 
 @runtime_checkable
@@ -155,6 +176,10 @@ class SlackClient(Protocol):
     async def remove_reaction(self, channel_id: str, ts: str, emoji: str) -> None: ...
 
     async def mark(self, channel_id: str, ts: str) -> None: ...
+
+    async def update_message(self, channel_id: str, ts: str, text: str) -> None: ...
+
+    async def delete_message(self, channel_id: str, ts: str) -> None: ...
 
     async def search(self, query: str) -> list[SearchResult]: ...
 
@@ -258,6 +283,18 @@ class FakeSlackClient:
         await self._events.put(
             ReactionUpdated(channel_id, ts, emoji, self._self_user, added=False)
         )
+
+    async def update_message(self, channel_id: str, ts: str, text: str) -> None:
+        msg = self._find(channel_id, ts)
+        if msg is None:
+            return
+        msg.text = text
+        await self._events.put(MessageEdited(channel_id, ts, text))
+
+    async def delete_message(self, channel_id: str, ts: str) -> None:
+        msgs = self._history.get(channel_id, [])
+        self._history[channel_id] = [m for m in msgs if m.ts != ts]
+        await self._events.put(MessageDeleted(channel_id, ts))
 
     async def list_users(self) -> list[RemoteUser]:
         return list(self._users.values())

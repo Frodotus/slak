@@ -49,6 +49,8 @@ class PyslkCommands(Provider):
             ("Search this channel", "search", "Find messages in the current channel"),
             ("Search all channels", "search_workspace", "Search the whole workspace"),
             ("Add reaction", "react", "React to the selected message"),
+            ("Edit message", "edit_message", "Edit your selected message"),
+            ("Delete message", "delete_message", "Delete your selected message"),
             ("Open link(s)", "open_links", "Open URLs from the selected message"),
             ("Mark unread from here", "mark_unread", "Mark the selected message and newer unread"),
             ("Open thread", "open_thread", "Open the thread for the selected message"),

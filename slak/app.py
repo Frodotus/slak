@@ -62,6 +62,8 @@ from slak.services import (
 from slak.slack import (
     Connected,
     DndChanged,
+    MessageDeleted,
+    MessageEdited,
     NewMessage,
     PresenceChanged,
     ReactionUpdated,
@@ -71,6 +73,7 @@ from slak.ui.commands import PyslkCommands
 from slak.ui.widgets import (
     ChannelFinder,
     ComposeInput,
+    EditModal,
     HelpModal,
     LinkPicker,
     MentionPopup,
@@ -104,6 +107,7 @@ class PyslkApp(App):
         Binding("alt+right", "history_forward", show=False),
         Binding("f1", "help", show=False, priority=True),
         Binding("ctrl+r", "react", show=False),
+        Binding("ctrl+e", "edit_message", show=False, priority=True),
         Binding("ctrl+o", "open_links", show=False),
         Binding("ctrl+f", "search", show=False),
         Binding("ctrl+shift+f", "search_workspace", show=False),
@@ -645,6 +649,26 @@ class PyslkApp(App):
                     pass
                 if event.added:  # a new custom reaction emoji may need its image
                     self.run_worker(self._prefetch_emoji(), exclusive=False)
+            elif isinstance(event, MessageEdited):
+                self.cache.edit_message(event.channel_id, event.ts, event.text)
+                if client is self.client:
+                    for pane_id in ("#messages", "#thread-messages"):
+                        try:
+                            self.query_one(pane_id, MessagePane).update_text(
+                                event.ts, event.text
+                            )
+                        except Exception:
+                            pass
+            elif isinstance(event, MessageDeleted):
+                self.cache.delete_message(event.channel_id, event.ts)
+                if client is self.client:
+                    for pane_id in ("#messages", "#thread-messages"):
+                        try:
+                            self.query_one(pane_id, MessagePane).remove_message(
+                                event.ts
+                            )
+                        except Exception:
+                            pass
             elif isinstance(event, PresenceChanged):
                 _, end = self._presence.get(client.team_id, ("auto", 0.0))
                 self._presence[client.team_id] = (event.presence, end)
@@ -906,6 +930,40 @@ class PyslkApp(App):
         url = await self.push_screen_wait(LinkPicker(links))
         if url:
             self._open_url(url)
+
+    def action_edit_message(self) -> None:
+        self.run_worker(self._edit_flow(), exclusive=False)
+
+    async def _edit_flow(self) -> None:
+        client = self.client
+        msg = self.query_one("#messages", MessagePane).selected_message()
+        if msg is None or self.active_channel is None or client is None:
+            return
+        if msg.user_id != client.self_user_id:
+            self.notify("You can only edit your own messages")
+            return
+        new_text = await self.push_screen_wait(EditModal(msg.text))
+        if new_text and new_text != msg.text:
+            try:
+                await client.update_message(self.active_channel, msg.ts, new_text)
+            except Exception as exc:
+                self.notify(f"Edit failed: {exc}", severity="error")
+
+    def action_delete_message(self) -> None:
+        self.run_worker(self._delete_flow(), exclusive=False)
+
+    async def _delete_flow(self) -> None:
+        client = self.client
+        msg = self.query_one("#messages", MessagePane).selected_message()
+        if msg is None or self.active_channel is None or client is None:
+            return
+        if msg.user_id != client.self_user_id:
+            self.notify("You can only delete your own messages")
+            return
+        try:
+            await client.delete_message(self.active_channel, msg.ts)
+        except Exception as exc:
+            self.notify(f"Delete failed: {exc}", severity="error")
 
 
 def _top_level(messages):
