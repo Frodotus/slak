@@ -86,7 +86,9 @@ class Rail(Static):
 
 
 def _channel_glyph(ch: RemoteChannel) -> str:
-    return {"dm": "●", "group_dm": "●", "private": "🔒"}.get(ch.type, "#")
+    # private uses the Nerd Font padlock (U+F023): a single-width lock, matching
+    # slk. Needs a Nerd Font installed (as slk assumes).
+    return {"dm": "●", "group_dm": "●", "private": ""}.get(ch.type, "#")
 
 
 # Synthetic sidebar row that opens the threads view (spec 03 §8).
