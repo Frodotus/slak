@@ -123,3 +123,12 @@ def test_typing_text_variants():
     assert typing_text(["Alice"]) == "Alice is typing…"
     assert typing_text(["Alice", "Bob"]) == "Alice and Bob are typing…"
     assert typing_text(["A", "B", "C"]) == "Several people are typing…"
+
+
+def test_reply_count_round_trips_through_cache():
+    from slak.services import to_cache_message, to_remote_message
+    from slak.slack import RemoteMessage
+    rm = RemoteMessage("1.0", "u", "p", reply_count=4)
+    assert to_cache_message("T1", "C1", rm).reply_count == 4
+    from slak.cache import Message
+    assert to_remote_message(Message("1.0", "C1", "T1", reply_count=4)).reply_count == 4

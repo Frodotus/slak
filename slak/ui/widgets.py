@@ -315,6 +315,9 @@ class MessagePane(VerticalScroll, can_focus=True):
         )
         if extras:
             body += "\n" + "\n".join(extras)
+        if getattr(m, "reply_count", 0):
+            n = m.reply_count
+            body += f"\n[$accent]💬 {n} repl{'y' if n == 1 else 'ies'}[/]"
         if m.reactions:
             # dim only the count — the emoji's own markup (esp. a kitty image
             # placeholder, whose fg colour encodes the image id) must be untouched

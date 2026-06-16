@@ -209,3 +209,13 @@ def test_legacy_attachment_renders_fields_and_color():
     assert "failed on main" in out
     assert "CI" in out
     assert "red" in out  # danger → red colour bar markup
+
+
+def test_thread_indicator_shown_for_messages_with_replies():
+    from slak.slack import RemoteMessage
+    from slak.ui.widgets import MessagePane
+
+    pane = MessagePane()
+    assert "3 replies" in pane._body(RemoteMessage("1.0", "u", "parent", reply_count=3))
+    assert "1 reply" in pane._body(RemoteMessage("2.0", "u", "p", reply_count=1))
+    assert "repl" not in pane._body(RemoteMessage("3.0", "u", "no thread"))

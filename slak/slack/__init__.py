@@ -73,6 +73,7 @@ class RemoteMessage:
     thread_ts: str = ""
     raw_json: str = ""
     reactions: list[Reaction] = field(default_factory=list)
+    reply_count: int = 0  # thread replies (parent messages only)
 
 
 @dataclass

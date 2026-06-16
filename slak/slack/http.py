@@ -117,6 +117,7 @@ def _message_from_dict(m: dict) -> RemoteMessage:
                      users=list(r.get("users", [])))
             for r in m.get("reactions", [])
         ],
+        reply_count=int(m.get("reply_count", 0)),
     )
 
 

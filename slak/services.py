@@ -37,6 +37,7 @@ def to_cache_message(team_id: str, channel_id: str, rm: RemoteMessage) -> Messag
         user_id=rm.user_id,
         text=rm.text,
         thread_ts=rm.thread_ts,
+        reply_count=rm.reply_count,
         raw_json=rm.raw_json,
     )
 
@@ -79,6 +80,7 @@ def to_remote_message(m: Message) -> RemoteMessage:
         user_id=m.user_id,
         text=m.text,
         thread_ts=m.thread_ts,
+        reply_count=m.reply_count,
         raw_json=m.raw_json,
     )
 
