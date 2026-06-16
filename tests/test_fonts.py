@@ -14,21 +14,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from slak.fonts import nerd_font_available, use_nerd_glyphs
+from slak.fonts import nerd_glyph_available, use_nerd_glyphs
 
 
-def test_nerd_font_available_detects_a_nerd_family():
-    has = lambda: ["DejaVu Sans", "JetBrainsMono Nerd Font", "Noto"]  # noqa: E731
-    none = lambda: ["DejaVu Sans", "Noto Sans Mono"]  # noqa: E731
-    assert nerd_font_available(has) is True
-    assert nerd_font_available(none) is False
-    assert nerd_font_available(lambda: []) is False
+def test_nerd_glyph_available_checks_codepoint_coverage():
+    covered = lambda cp: ["FontAwesome"]      # noqa: E731  a font covers U+F023
+    uncovered = lambda cp: []                 # noqa: E731  nothing covers it
+    assert nerd_glyph_available(covered) is True
+    assert nerd_glyph_available(uncovered) is False
 
 
 def test_use_nerd_glyphs_respects_config_override():
-    none = lambda: []  # noqa: E731  (no nerd font installed)
-    has = lambda: ["Hack Nerd Font Mono"]  # noqa: E731
+    none = lambda cp: []                      # noqa: E731
+    has = lambda cp: ["FontAwesome"]          # noqa: E731
     assert use_nerd_glyphs("on", none) is True       # forced on
     assert use_nerd_glyphs("off", has) is False      # forced off
-    assert use_nerd_glyphs("auto", has) is True      # auto + installed
-    assert use_nerd_glyphs("auto", none) is False    # auto + missing
+    assert use_nerd_glyphs("auto", has) is True      # auto + glyph available
+    assert use_nerd_glyphs("auto", none) is False    # auto + glyph missing

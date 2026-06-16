@@ -49,8 +49,9 @@ command palette (every action), and `F1` shows the full keybinding reference.
 - ~70-slot color themes (12 built-in incl. terminal-following `ansi-dark`/`ansi-light`,
   plus `~/.config/slak/themes/*.toml` and `[theme]` overrides), switched live with
   `Ctrl+Y`; the sidebar is auto-kept contrasting (CIELAB).
-- Private channels show a padlock — a single-width Nerd Font glyph when a Nerd Font
-  is detected, else a narrow `⚿` fallback (`[appearance] nerd_font = auto|on|off`).
+- Private channels show a padlock — the single-width `` glyph when an installed
+  font covers it (Nerd Font / FontAwesome, detected via fontconfig), else a narrow
+  `⚿` fallback (`[appearance] nerd_font = auto|on|off`).
 
 **Realtime & integration**
 

@@ -14,12 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Nerd Font detection — pick Nerd glyphs (single-width padlock, …) when available.
+"""Decide whether to use the Nerd padlock glyph for private channels.
 
-A terminal never tells an app which font it renders with, so this is a heuristic:
-is a Nerd Font *installed* on the system (via ``fc-list``)? Combined with a config
-override (``[appearance] nerd_font = auto|on|off``) it decides whether to use Nerd
-glyphs or a broadly-supported fallback.
+A terminal never tells an app its font, so we ask the next best thing via
+fontconfig: does *any* installed font actually cover the padlock codepoint
+(U+F023)? If so the terminal will render it (Nerd Fonts and FontAwesome both
+include it) rather than showing tofu. This is far more reliable than matching
+"Nerd Font" in family names. A config override (``[appearance] nerd_font =
+auto|on|off``) wins over detection.
 """
 
 from __future__ import annotations
@@ -27,36 +29,40 @@ from __future__ import annotations
 import functools
 import subprocess
 
+PADLOCK_CODEPOINT = 0xF023  # Nerd Font / FontAwesome lock glyph
 
-def list_system_fonts() -> list[str]:
-    """Installed font family names (via fontconfig); empty if unavailable."""
+
+def fonts_covering(codepoint: int) -> list[str]:
+    """Installed font families that cover ``codepoint`` (via fontconfig)."""
     try:
         out = subprocess.run(
-            ["fc-list", ":", "family"],
+            ["fc-list", f":charset={codepoint:04x}", "family"],
             capture_output=True, text=True, timeout=2,
         )
-        return out.stdout.splitlines()
+        return [ln for ln in out.stdout.splitlines() if ln.strip()]
     except (OSError, subprocess.SubprocessError):
         return []
 
 
 @functools.cache
-def _system_has_nerd_font() -> bool:
-    return any("nerd font" in f.lower() for f in list_system_fonts())
+def _system_covers_padlock() -> bool:
+    return bool(fonts_covering(PADLOCK_CODEPOINT))
 
 
-def nerd_font_available(lister=None) -> bool:
-    """True if a Nerd Font is installed. ``lister`` is injectable for tests; the
-    default system check is cached (one ``fc-list`` per process)."""
-    if lister is None:
-        return _system_has_nerd_font()
-    return any("nerd font" in f.lower() for f in lister())
+def nerd_glyph_available(coverer=None) -> bool:
+    """True if some installed font covers the padlock glyph (so it will render).
+
+    ``coverer(codepoint) -> list[str]`` is injectable for tests; the default
+    system check is cached (one ``fc-list`` per process)."""
+    if coverer is None:
+        return _system_covers_padlock()
+    return bool(coverer(PADLOCK_CODEPOINT))
 
 
-def use_nerd_glyphs(config_value: str, lister=None) -> bool:
+def use_nerd_glyphs(config_value: str, coverer=None) -> bool:
     """Resolve the Nerd-glyph decision: ``on``/``off`` force it, ``auto`` detects."""
     if config_value == "on":
         return True
     if config_value == "off":
         return False
-    return nerd_font_available(lister)
+    return nerd_glyph_available(coverer)
