@@ -41,6 +41,27 @@ def to_cache_message(team_id: str, channel_id: str, rm: RemoteMessage) -> Messag
     )
 
 
+def format_mpdm(name: str, lookup=None) -> str:
+    """Format a Slack MPIM name (``mpdm-alice--bob--carol-1``) for display.
+
+    Strips the ``mpdm-`` prefix and trailing ``-<index>``, splits the handles on
+    ``--``, resolves each via ``lookup(handle)`` (falling back to the raw handle),
+    and joins with ``, ``. Non-MPDM names pass through unchanged.
+    """
+    prefix = "mpdm-"
+    if not name.startswith(prefix):
+        return name
+    body = name[len(prefix):]
+    i = body.rfind("-")
+    if i > 0 and body[i + 1:].isdigit():
+        body = body[:i]
+    handles = [h for h in body.split("--") if h]
+    if not handles:
+        return name
+    displays = [(lookup(h) if lookup else None) or h for h in handles]
+    return ", ".join(displays)
+
+
 def to_remote_message(m: Message) -> RemoteMessage:
     return RemoteMessage(
         ts=m.ts,

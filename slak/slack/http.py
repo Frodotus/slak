@@ -124,6 +124,7 @@ def _user_from_member(m: dict) -> RemoteUser:
         name=name,
         is_bot=bool(m.get("is_bot")),
         deleted=bool(m.get("deleted")),
+        handle=m.get("name", ""),
     )
 
 

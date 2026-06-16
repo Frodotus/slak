@@ -93,6 +93,7 @@ class RemoteUser:
     name: str  # best display name (display_name › real_name › handle)
     is_bot: bool = False
     deleted: bool = False
+    handle: str = ""  # the @username, for resolving MPIM names
 
 
 @dataclass

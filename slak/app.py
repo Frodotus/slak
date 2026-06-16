@@ -56,6 +56,7 @@ from slak.notify import (
 )
 from slak.services import (
     backfill,
+    format_mpdm,
     persist_messages,
     to_remote_message,
     translate_mentions,
@@ -151,6 +152,7 @@ class PyslkApp(App):
         self._channel_names: dict[str, str] = {}
         self._chan_meta: dict[str, dict[str, tuple[str, str]]] = {}  # team->cid->(name,type)
         self._names: dict[str, dict[str, str]] = {}  # team_id -> {user_id: display}
+        self._handles: dict[str, dict[str, str]] = {}  # team_id -> {handle: display}
         self._custom_emoji: dict[str, dict[str, str]] = {}  # team_id -> {name: url}
         self._emoji_images: EmojiImages | None = None
         self._media_images: MediaImages | None = None
@@ -418,11 +420,15 @@ class PyslkApp(App):
         self._update_status()
 
     def _resolve_dm_names(self, team_id: str, channels) -> None:
-        """Give DM channels (no Slack-provided name) the peer's display name."""
+        """Give DM/MPIM channels human names — peer display name for a 1:1 DM,
+        formatted member list for a group DM (spec/slk parity)."""
         names = self._names.get(team_id, {})
+        handles = self._handles.get(team_id, {})
         for ch in channels:
             if ch.type == "dm" and ch.user and not ch.name:
                 ch.name = names.get(ch.user, ch.user)
+            elif ch.type == "group_dm":
+                ch.name = format_mpdm(ch.name, handles.get)
 
     # --- channels ---------------------------------------------------------
 
@@ -641,6 +647,9 @@ class PyslkApp(App):
             self.log(f"user list failed for {client.team_id}: {exc!r}")
             return
         self._names[client.team_id] = {u.id: u.name for u in users}
+        self._handles[client.team_id] = {
+            u.handle: u.name for u in users if u.handle
+        }
 
     async def _load_custom_emoji(self, client: SlackClient) -> None:
         try:

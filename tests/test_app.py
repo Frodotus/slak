@@ -654,3 +654,22 @@ async def test_failed_reaction_surfaces_a_toast():
         await app._add_reaction("C1", "1.0", "thumbs_up")
         assert captured  # error was surfaced, not swallowed
         assert "invalid_name" in str(captured[0])
+
+
+async def test_group_dm_name_formats_member_handles():
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("G1", "mpdm-alice--bob-1", "group_dm")],
+        history={"G1": [RemoteMessage("1.0", "U1", "hi")]},
+        users=[RemoteUser("U1", "Alice", handle="alice"),
+               RemoteUser("U2", "Bob", handle="bob")],
+    )
+    app = PyslkApp(
+        router=WorkspaceRouter.single(client),
+        cache=Cache.open(":memory:"),
+        config=Config(),
+    )
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        assert app._channel_names["G1"] == "Alice, Bob"

@@ -96,3 +96,19 @@ def test_translate_mentions_prefers_longest_name():
     # "Al" must not shadow "Alice" — longest match wins
     names = {"Al": "U9", "Alice": "U1"}
     assert translate_mentions("hey @Alice", names) == "hey <@U1>"
+
+
+# --- MPDM (group-DM) name formatting -------------------------------------
+from slak.services import format_mpdm  # noqa: E402
+
+
+def test_format_mpdm_joins_handles_when_unresolved():
+    assert format_mpdm("mpdm-alice--bob--carol-1") == "alice, bob, carol"
+
+
+def test_format_mpdm_resolves_handles_via_lookup():
+    assert format_mpdm("mpdm-alice--bob-1", {"alice": "Alice"}.get) == "Alice, bob"
+
+
+def test_format_mpdm_passes_through_non_mpdm_names():
+    assert format_mpdm("eng-web") == "eng-web"
