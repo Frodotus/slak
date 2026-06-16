@@ -92,6 +92,7 @@ from slak.ui.widgets import (
 )
 from slak.ui.widgets import THREADS_ROW_ID
 from slak.sections import layout as section_layout
+from slak.mcp import build_snapshot, default_socket_path, message_dict, serve as serve_mcp
 from slak import themes
 from slak.workspace import WorkspaceRouter
 
@@ -222,6 +223,8 @@ class PyslkApp(App):
             if hasattr(client, "start_realtime"):
                 self.run_worker(self._run_realtime(client), exclusive=False)
         self.set_interval(60, self._update_status)  # DND countdown refresh
+        if self.config.mcp_enabled:
+            self.run_worker(self._serve_mcp(), exclusive=False)
 
     async def _seed_channels(self, client: SlackClient) -> None:
         """Populate the cache with a workspace's channels so cross-workspace
@@ -870,6 +873,55 @@ class PyslkApp(App):
             await client.start_realtime()  # type: ignore[attr-defined]
         except Exception as exc:  # best-effort
             self.log(f"realtime stopped for {client.team_id}: {exc!r}")
+
+    # --- embedded MCP server (spec 06 §4) ---------------------------------
+
+    def mcp_snapshot(self) -> dict:
+        """Build the read-only context snapshot for ``slak_get_context``."""
+        client = self.client
+        workspace = client.team_name if client else ""
+        channel = None
+        if self.active_channel and client is not None:
+            name, ctype = self._chan_meta.get(client.team_id, {}).get(
+                self.active_channel,
+                (self._channel_names.get(self.active_channel, self.active_channel),
+                 "channel"),
+            )
+            channel = {"id": self.active_channel, "name": name, "type": ctype}
+        pane = self.query_one("#messages", MessagePane)
+        sm = pane.selected_message()
+        selected = message_dict(sm, self._name_of) if sm else None
+        recent = [message_dict(m, self._name_of) for m in pane._messages[-20:]]
+        thread = {"open": False}
+        if self.open_thread_ts and self.query_one("#thread", ThreadPanel).display:
+            replies = self.query_one("#thread-messages", MessagePane)._messages
+            if replies:
+                thread = {
+                    "open": True,
+                    "parent": message_dict(replies[0], self._name_of),
+                    "replies": [message_dict(m, self._name_of) for m in replies[1:]],
+                }
+        return build_snapshot(
+            workspace=workspace, channel=channel, selected=selected,
+            thread=thread, recent=recent,
+        )
+
+    def mcp_set_draft(self, text: str) -> dict:
+        """Populate the active composer (thread if open, else channel)."""
+        if self.open_thread_ts and self.query_one("#thread", ThreadPanel).display:
+            self.query_one("#thread-compose", Input).value = text
+            return {"target": "thread", "channel": self.open_thread_channel, "ok": True}
+        if self.active_channel:
+            self.query_one("#compose", Input).value = text
+            return {"target": "channel", "channel": self.active_channel, "ok": True}
+        return {"ok": False}
+
+    async def _serve_mcp(self) -> None:
+        path = self.config.mcp_socket_path or default_socket_path()
+        try:
+            await serve_mcp(path, self.mcp_snapshot, self.mcp_set_draft)
+        except Exception as exc:  # best-effort; never crash the TUI
+            self.log(f"mcp server stopped: {exc!r}")
 
     async def _maybe_backfill(self, client: SlackClient) -> None:
         """Backfill on (re)connect, deduped to once per workspace per 30 s."""

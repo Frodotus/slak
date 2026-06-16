@@ -86,6 +86,8 @@ class Config:
     notify_on_mention: bool = True
     notify_on_dm: bool = True
     notify_keywords: list[str] = field(default_factory=list)
+    mcp_enabled: bool = False
+    mcp_socket_path: str | None = None
     sections: dict[str, list[str]] = field(default_factory=dict)
     workspaces: list[WorkspaceConfig] = field(default_factory=list)
 
@@ -95,6 +97,7 @@ class Config:
         general = data.get("general", {})
         appearance = data.get("appearance", {})
         notif = data.get("notifications", {})
+        mcp = data.get("mcp", {})
 
         workspaces: list[WorkspaceConfig] = []
         for slug, block in data.get("workspaces", {}).items():
@@ -128,6 +131,8 @@ class Config:
             notify_on_mention=bool(notif.get("on_mention", True)),
             notify_on_dm=bool(notif.get("on_dm", True)),
             notify_keywords=list(notif.get("on_keyword", [])),
+            mcp_enabled=bool(mcp.get("enabled", False)),
+            mcp_socket_path=mcp.get("socket_path"),
             sections=_parse_sections(data.get("sections", {})),
             workspaces=workspaces,
         )
@@ -159,6 +164,13 @@ class Config:
         notif["on_dm"] = self.notify_on_dm
         notif["on_keyword"] = self.notify_keywords
         doc["notifications"] = notif
+
+        if self.mcp_enabled or self.mcp_socket_path:
+            mcp = tomlkit.table()
+            mcp["enabled"] = self.mcp_enabled
+            if self.mcp_socket_path:
+                mcp["socket_path"] = self.mcp_socket_path
+            doc["mcp"] = mcp
 
         if self.theme_overrides:
             doc["theme"] = self.theme_overrides

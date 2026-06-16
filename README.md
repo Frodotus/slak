@@ -50,9 +50,13 @@ Early MVP scaffold. Working today:
 - **Block Kit & legacy attachments** — bot/app messages (`blocks`/`attachments`)
   render as headers, sections + field grids, context, dividers, and muted control
   labels, instead of being dropped.
+- **Embedded MCP server** (opt-in, `[mcp] enabled = true`) — an AI client can read
+  your current context (`slak_get_context`) and draft a reply into the composer
+  (`slak_set_draft`, draft-only — you review and send). Adapter: `slak --mcp`
+  (needs `pip install 'slak[mcp]'`).
 
-Not yet wired: Slack-native sections / stars, the full ~70-theme set, Block Kit,
-MCP server. See the spec set for the full roadmap.
+Not yet wired: Slack-native sections / stars, the full ~70-theme set, inline
+block images. See the spec set for the full roadmap.
 
 ## Use a real workspace
 

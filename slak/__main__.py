@@ -21,6 +21,7 @@
     slak --add-workspace     paste xoxc token + d cookie to add a workspace
     slak --list-workspaces   list configured workspaces
     slak --diagnose          print terminal image protocol + custom-emoji status
+    slak --mcp               run the stdio MCP adapter (bridges to a running slak)
 """
 
 from __future__ import annotations
@@ -110,7 +111,18 @@ def main() -> None:
     parser.add_argument("--list-workspaces", action="store_true")
     parser.add_argument("--diagnose", action="store_true")
     parser.add_argument("--demo", action="store_true")
+    parser.add_argument(
+        "--mcp", action="store_true",
+        help="run the stdio MCP adapter that bridges to a running slak",
+    )
     args = parser.parse_args()
+
+    if args.mcp:
+        from slak.mcp import default_socket_path
+        from slak.mcp.adapter import run_adapter
+
+        run_adapter(load_config().mcp_socket_path or default_socket_path())
+        return
 
     if args.add_workspace:
         asyncio.run(add_workspace_flow())
