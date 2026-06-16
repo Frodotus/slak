@@ -69,6 +69,7 @@ from slak.slack import (
     NewMessage,
     PresenceChanged,
     ReactionUpdated,
+    SectionsChanged,
     SlackClient,
 )
 from slak.ui.commands import PyslkCommands
@@ -445,8 +446,13 @@ class PyslkApp(App):
         except Exception as exc:
             self.log(f"channel sections fetch failed: {exc!r}")
             return
-        if sections:
-            self._native_sections[client.team_id] = sections
+        # set unconditionally (even []) so a later emptying clears stale sections
+        self._native_sections[client.team_id] = sections
+
+    async def _reload_sections(self, client: SlackClient) -> None:
+        await self._load_native_sections(client)
+        if client is self.client:
+            await self._populate_sidebar()
 
     def _native_groups(self, sections, channels):
         by_id = {c.id: c for c in channels}
@@ -927,6 +933,8 @@ class PyslkApp(App):
                             )
                         except Exception:
                             pass
+            elif isinstance(event, SectionsChanged):
+                self.run_worker(self._reload_sections(client), exclusive=False)
             elif isinstance(event, PresenceChanged):
                 _, end = self._presence.get(client.team_id, ("auto", 0.0))
                 self._presence[client.team_id] = (event.presence, end)

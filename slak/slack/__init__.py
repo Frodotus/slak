@@ -149,6 +149,11 @@ class MessageDeleted:
 
 
 @dataclass
+class SectionsChanged:
+    """A sidebar-section WS event — the app re-fetches sections (spec 03 §9)."""
+
+
+@dataclass
 class PresenceChanged:
     presence: str  # "auto" | "away"
 
@@ -165,6 +170,7 @@ Event = (
     | ReactionUpdated
     | MessageEdited
     | MessageDeleted
+    | SectionsChanged
     | PresenceChanged
     | DndChanged
 )

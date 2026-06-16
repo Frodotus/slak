@@ -93,6 +93,43 @@ async def test_http_parses_channel_sections():
     assert secs[0].channel_ids == ["C1", "C2"]
 
 
+def test_parse_rtm_section_events():
+    from slak.slack import SectionsChanged
+    from slak.slack.http import parse_rtm_event
+
+    for kind in ("channel_section_updated", "channel_sections_channels_added"):
+        assert isinstance(parse_rtm_event({"type": kind}), SectionsChanged)
+    assert parse_rtm_event({"type": "user_typing"}) is None
+
+
+async def test_section_ws_event_refreshes_the_sidebar():
+    from slak.slack import SectionsChanged
+
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general"), RemoteChannel("C2", "eng-web")],
+        history={"C1": [RemoteMessage("1.0", "u", "hi")]},
+        sections=[RemoteSection("S1", "Engineering", "standard", channel_ids=["C2"])],
+    )
+    app = PyslkApp(
+        router=WorkspaceRouter.single(client),
+        cache=Cache.open(":memory:"),
+        config=Config(),
+    )
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        sidebar = app.query_one("#sidebar", Sidebar)
+        assert list(sidebar._section_ids.values()) == ["Engineering"]
+
+        # sections change server-side, then a WS event arrives
+        client._sections = [RemoteSection("S9", "Design", "standard", channel_ids=["C1"])]
+        await client.emit_event(SectionsChanged())
+        for _ in range(4):
+            await pilot.pause()
+        assert list(sidebar._section_ids.values()) == ["Design"]
+
+
 async def test_app_renders_native_section_groups():
     client = FakeSlackClient(
         team_id="T1", team_name="Acme",
