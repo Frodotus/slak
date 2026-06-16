@@ -372,3 +372,13 @@ async def test_bot_info_returns_name():
     def handler(request):
         return httpx.Response(200, json={"ok": True, "bot": {"id": "B1", "name": "CI Bot"}})
     assert await make_client(handler).bot_info("B1") == "CI Bot"
+
+
+async def test_list_channels_excludes_archived():
+    def handler(request):
+        return httpx.Response(200, json={"ok": True, "channels": [
+            {"id": "C1", "name": "general", "is_channel": True},
+            {"id": "C2", "name": "old-stuff", "is_channel": True, "is_archived": True},
+        ]})
+    chans = await make_client(handler).list_channels()
+    assert [c.id for c in chans] == ["C1"]  # archived dropped

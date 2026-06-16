@@ -239,6 +239,7 @@ class HttpSlackClient:
         data = await self._call(
             "conversations.list",
             types="public_channel,private_channel,im,mpim",
+            exclude_archived="true",
             limit=1000,
         )
         return [
@@ -247,6 +248,7 @@ class HttpSlackClient:
                 user=c.get("user", ""),
             )
             for c in data.get("channels", [])
+            if not c.get("is_archived")  # belt-and-suspenders vs the API param
         ]
 
     async def history(
