@@ -196,6 +196,12 @@ class HttpSlackClient:
     async def aclose(self) -> None:
         await self._http.aclose()
 
+    async def fetch_bytes(self, url: str) -> bytes:
+        """GET an (absolute) URL with the workspace's auth — for url_private files."""
+        resp = await self._http.get(url)
+        resp.raise_for_status()
+        return resp.content
+
     async def _call(self, method: str, **params) -> dict:
         resp = await self._http.post(method, data=params)
         resp.raise_for_status()

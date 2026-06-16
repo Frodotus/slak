@@ -52,8 +52,9 @@ Early MVP scaffold. Working today:
   (4-wide pool, deduped per workspace) and refreshes threads/the open channel.
 - **Block Kit & legacy attachments** — bot/app messages (`blocks`/`attachments`)
   render as headers, sections + field grids, context, dividers, and muted control
-  labels. Image blocks/attachments render **inline** — kitty graphics on kitty,
-  `▀` half-blocks on any truecolor terminal (labelled `🖼` fallback otherwise).
+  labels. Uploaded image files and image blocks/attachments render **inline** —
+  kitty graphics on kitty, `▀` half-blocks on any truecolor terminal (labelled
+  `🖼` fallback otherwise). Slack `url_private` files are fetched authenticated.
 - **Embedded MCP server** (opt-in, `[mcp] enabled = true`) — an AI client can read
   your current context (`slak_get_context`) and draft a reply into the composer
   (`slak_set_draft`, draft-only — you review and send). Adapter: `slak --mcp`

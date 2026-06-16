@@ -135,6 +135,28 @@ def test_image_urls_collects_from_blocks_and_attachments():
     ]
 
 
+def test_image_urls_includes_image_files():
+    raw = json.dumps({
+        "files": [
+            {"mimetype": "image/png", "thumb_360": "https://files.slack.com/a-360.png",
+             "url_private": "https://files.slack.com/a.png"},
+            {"mimetype": "application/pdf", "url_private": "https://files.slack.com/d.pdf"},
+        ]
+    })
+    assert image_urls(raw) == ["https://files.slack.com/a-360.png"]
+
+
+def test_image_file_renders_via_callback():
+    raw = json.dumps({"files": [
+        {"mimetype": "image/png", "thumb_360": "u360", "name": "pic.png"},
+    ]})
+    lines = render_extras(raw, name_of=str, image_render=lambda u: "[IMG]" if u == "u360" else None)
+    assert any("[IMG]" in ln for ln in lines)
+    # fallback to a labelled placeholder when not ready
+    lines = render_extras(raw, name_of=str, image_render=lambda u: None)
+    assert any("pic.png" in ln for ln in lines)
+
+
 def test_image_urls_empty_and_invalid():
     assert image_urls("") == []
     assert image_urls("nope") == []

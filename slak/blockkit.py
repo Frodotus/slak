@@ -73,6 +73,11 @@ def render_extras(
     if isinstance(attachments, list):
         lines += _render_attachments(attachments, name_of, custom_render, image_render)
 
+    for f in data.get("files") or []:
+        url = _file_image_url(f)
+        if url:
+            lines.append(_img(url, f.get("name", "image"), image_render))
+
     if interactive:
         lines.append("[dim]↗ open in Slack to interact[/dim]")
     return lines
@@ -104,8 +109,19 @@ def image_urls(raw_json: str) -> list[str]:
         for key in ("image_url", "thumb_url"):
             if a.get(key):
                 urls.append(a[key])
+    for f in data.get("files") or []:
+        url = _file_image_url(f)
+        if url:
+            urls.append(url)
     seen: set[str] = set()
     return [u for u in urls if not (u in seen or seen.add(u))]
+
+
+def _file_image_url(f) -> str | None:
+    """A shareable image URL for a Slack file (thumb preferred), or None."""
+    if not isinstance(f, dict) or not str(f.get("mimetype", "")).startswith("image/"):
+        return None
+    return f.get("thumb_360") or f.get("thumb_480") or f.get("url_private")
 
 
 def _img(url: str, label: str, image_render: ImageRender) -> str:

@@ -610,6 +610,12 @@ class PyslkApp(App):
         debug(f"init emoji images: protocol={proto} enabled={self._emoji_images.enabled}")
 
     async def _fetch_image(self, url: str) -> bytes:
+        # Slack `url_private` files need the workspace auth; the active client
+        # fetches authed. Public CDN URLs (emoji) work either way.
+        client = self.client
+        fetch_bytes = getattr(client, "fetch_bytes", None)
+        if fetch_bytes is not None:
+            return await fetch_bytes(url)
         import httpx
 
         async with httpx.AsyncClient(timeout=15.0) as http:

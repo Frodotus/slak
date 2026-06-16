@@ -82,6 +82,20 @@ async def test_http_list_thread_subscriptions_paginates():
     ]
 
 
+async def test_fetch_bytes_sends_auth_to_absolute_url():
+    seen = {}
+
+    def handler(request):
+        seen["url"] = str(request.url)
+        seen["auth"] = request.headers.get("authorization")
+        return httpx.Response(200, content=b"PNGDATA")
+
+    data = await make_http(handler).fetch_bytes("https://files.slack.com/x.png")
+    assert data == b"PNGDATA"
+    assert seen["url"] == "https://files.slack.com/x.png"
+    assert seen["auth"] == "Bearer xoxc-x"
+
+
 async def test_http_open_conversation_calls_conversations_open():
     seen = {}
 
