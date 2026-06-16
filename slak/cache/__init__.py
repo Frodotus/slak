@@ -375,6 +375,24 @@ class Cache:
         rows.sort(key=lambda r: r.last_reply_ts, reverse=True)
         return rows
 
+    def channels_with_messages(self, workspace_id: str) -> list[str]:
+        """Distinct channel ids that have cached (non-deleted) messages."""
+        rows = self._conn.execute(
+            "SELECT DISTINCT channel_id FROM messages "
+            "WHERE workspace_id=? AND is_deleted=0",
+            (workspace_id,),
+        ).fetchall()
+        return [r["channel_id"] for r in rows]
+
+    def latest_message_ts(self, channel_id: str) -> str:
+        """Newest cached message ts for a channel (the backfill cursor), or ''."""
+        row = self._conn.execute(
+            "SELECT ts FROM messages WHERE channel_id=? AND is_deleted=0 "
+            "ORDER BY CAST(ts AS REAL) DESC LIMIT 1",
+            (channel_id,),
+        ).fetchone()
+        return row["ts"] if row else ""
+
     def get_messages(self, channel_id: str, limit: int = 50) -> list[Message]:
         """Return up to ``limit`` newest messages, oldest-first."""
         rows = self._conn.execute(

@@ -22,6 +22,7 @@ reconnection backoff schedule. The app composes these; they hold no UI state.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable, Iterator
 
 from slak.cache import Cache, Message
@@ -55,6 +56,38 @@ def persist_messages(
 ) -> None:
     for rm in messages:
         cache.add_message(to_cache_message(team_id, channel_id, rm))
+
+
+async def backfill(
+    client,
+    cache: Cache,
+    team_id: str,
+    channel_ids: list[str] | None = None,
+    concurrency: int = 4,
+    cap: int = 500,
+) -> int:
+    """Fetch each channel's history since its newest cached message (spec 02 §6).
+
+    Runs with a bounded worker pool; persists fetched messages (idempotent upsert)
+    and returns the total number of messages fetched. A channel fetch that errors
+    is skipped, not fatal.
+    """
+    if channel_ids is None:
+        channel_ids = cache.channels_with_messages(team_id)
+    sem = asyncio.Semaphore(concurrency)
+
+    async def one(channel_id: str) -> int:
+        oldest = cache.latest_message_ts(channel_id)
+        async with sem:
+            try:
+                fetched = await client.history(channel_id, limit=cap, oldest=oldest)
+            except Exception:
+                return 0
+        persist_messages(cache, team_id, channel_id, fetched)
+        return len(fetched)
+
+    counts = await asyncio.gather(*(one(c) for c in channel_ids))
+    return sum(counts)
 
 
 def backoff_delays(start: float = 1.0, cap: float = 30.0) -> Iterator[float]:

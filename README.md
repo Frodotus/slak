@@ -45,6 +45,8 @@ Early MVP scaffold. Working today:
   newest-reply first; the side panel follows the cursor.
 - **Sidebar sections** via config globs (`[sections.<name>] patterns = [...]`,
   per-workspace override) — grouped, collapsible channel headers.
+- **Reconnect backfill** — on RTM reconnect, fetches each channel's missed history
+  (4-wide pool, deduped per workspace) and refreshes threads/the open channel.
 
 Not yet wired: Slack-native sections / stars, the full ~70-theme set, Block Kit,
 MCP server. See the spec set for the full roadmap.

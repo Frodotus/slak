@@ -166,7 +166,9 @@ class SlackClient(Protocol):
 
     async def list_channels(self) -> list[RemoteChannel]: ...
 
-    async def history(self, channel_id: str, limit: int = 50) -> list[RemoteMessage]: ...
+    async def history(
+        self, channel_id: str, limit: int = 50, oldest: str = ""
+    ) -> list[RemoteMessage]: ...
 
     async def thread_replies(
         self, channel_id: str, thread_ts: str
@@ -239,8 +241,12 @@ class FakeSlackClient:
     async def list_channels(self) -> list[RemoteChannel]:
         return list(self._channels)
 
-    async def history(self, channel_id: str, limit: int = 50) -> list[RemoteMessage]:
+    async def history(
+        self, channel_id: str, limit: int = 50, oldest: str = ""
+    ) -> list[RemoteMessage]:
         msgs = sorted(self._history.get(channel_id, []), key=lambda m: float(m.ts))
+        if oldest:
+            msgs = [m for m in msgs if float(m.ts) > float(oldest)]
         return msgs[-limit:]
 
     async def thread_replies(self, channel_id: str, thread_ts: str) -> list[RemoteMessage]:

@@ -54,6 +54,7 @@ from slak.notify import (
     should_notify,
 )
 from slak.services import (
+    backfill,
     persist_messages,
     to_remote_message,
     translate_mentions,
@@ -154,6 +155,7 @@ class PyslkApp(App):
         self._view: str = "channels"  # "channels" | "threads" (spec 03 §8)
         self._collapsed_sections: dict[str, set[str]] = {}  # team_id -> names
         self._sidebar_channels: list = []  # active workspace's channels
+        self._last_backfill: dict[str, float] = {}  # team_id -> monotonic ts
         self._search_matches: list[str] = []
         self._search_idx: int = 0
         self._presence: dict[str, tuple[str, float]] = {}  # team -> (presence, dnd_end)
@@ -854,8 +856,10 @@ class PyslkApp(App):
                 )
                 if client is self.client:
                     self._update_status()
-            elif isinstance(event, Connected) and client is self.client:
-                self._update_status()
+            elif isinstance(event, Connected):
+                if client is self.client:
+                    self._update_status()
+                self.run_worker(self._maybe_backfill(client), exclusive=False)
 
     def on_unmount(self) -> None:
         """Clean shutdown: checkpoint and close the cache."""
@@ -866,6 +870,29 @@ class PyslkApp(App):
             await client.start_realtime()  # type: ignore[attr-defined]
         except Exception as exc:  # best-effort
             self.log(f"realtime stopped for {client.team_id}: {exc!r}")
+
+    async def _maybe_backfill(self, client: SlackClient) -> None:
+        """Backfill on (re)connect, deduped to once per workspace per 30 s."""
+        now = time.monotonic()
+        if now - self._last_backfill.get(client.team_id, 0.0) < 30.0:
+            return
+        self._last_backfill[client.team_id] = now
+        await self._backfill_now(client)
+
+    async def _backfill_now(self, client: SlackClient) -> None:
+        debug(f"[backfill] start {client.team_id}")
+        fetched = await backfill(client, self.cache, client.team_id)
+        await self._load_thread_subscriptions(client)
+        if client is self.client:
+            if self._view == "threads":
+                team = self.router.active_team_id() or ""
+                self.query_one("#threads", ThreadList).set_threads(
+                    self.cache.threads_overview(team), self._name_of
+                )
+            elif self.active_channel:
+                # re-fetch live (reactions intact) and reconcile the open channel
+                await self._sync_channel(client, self.active_channel)
+        debug(f"[backfill] done {client.team_id}: {fetched} msgs")
 
     # --- actions (also exposed via the command palette) -------------------
 

@@ -217,8 +217,13 @@ class HttpSlackClient:
             for c in data.get("channels", [])
         ]
 
-    async def history(self, channel_id: str, limit: int = 50) -> list[RemoteMessage]:
-        data = await self._call("conversations.history", channel=channel_id, limit=limit)
+    async def history(
+        self, channel_id: str, limit: int = 50, oldest: str = ""
+    ) -> list[RemoteMessage]:
+        params = {"channel": channel_id, "limit": limit}
+        if oldest:
+            params["oldest"] = oldest  # only messages newer than this ts
+        data = await self._call("conversations.history", **params)
         messages = [_message_from_dict(m) for m in data.get("messages", [])]
         messages.sort(key=lambda m: float(m.ts or 0))
         return messages
