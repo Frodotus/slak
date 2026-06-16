@@ -1225,6 +1225,10 @@ class PyslkApp(App):
         if client is None:
             return
         channels = await client.list_channels()
+        self._resolve_dm_names(client.team_id, channels)
+        # empty-query order = recency (most-recently-visited first), then the rest
+        rank = {cid: i for i, cid in enumerate(self.cache.visit_order(client.team_id))}
+        channels.sort(key=lambda c: rank.get(c.id, len(rank)))
         channel_id = await self.push_screen_wait(ChannelFinder(channels))
         if channel_id:
             await self.open_channel(channel_id)

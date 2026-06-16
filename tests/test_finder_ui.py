@@ -50,6 +50,21 @@ async def test_ctrl_k_opens_finder():
         assert isinstance(app.screen, ChannelFinder)
 
 
+async def test_finder_empty_query_orders_by_recency():
+    app = make_app()  # channels C1, C2, C3
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        await app.open_channel("C3")
+        await app.open_channel("C1")  # most recent
+        await pilot.pause()
+        await pilot.press("ctrl+k")
+        for _ in range(2):
+            await pilot.pause()
+        # visited (recency) first: C1, C3; then the unvisited C2
+        assert [c.id for c in app.screen._all] == ["C1", "C3", "C2"]
+
+
 async def test_finder_filters_and_enter_opens_channel():
     app = make_app()
     async with app.run_test() as pilot:

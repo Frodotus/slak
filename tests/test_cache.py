@@ -174,3 +174,12 @@ def test_channel_visits_track_most_recent():
     cache.record_visit("T1", "C3")
     assert cache.last_visited_channel("T1") == "C3"
     assert cache.last_visited_channel("T2") is None  # per-workspace
+
+
+def test_visit_order_is_most_recent_first():
+    cache = Cache.open(":memory:")
+    cache.record_visit("T1", "C1")
+    cache.record_visit("T1", "C2")
+    cache.record_visit("T1", "C3")
+    cache.record_visit("T1", "C1")  # revisit -> C1 jumps to front
+    assert cache.visit_order("T1") == ["C1", "C3", "C2"]

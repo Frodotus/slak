@@ -505,6 +505,15 @@ class Cache:
         )
         self._conn.commit()
 
+    def visit_order(self, workspace_id: str) -> list[str]:
+        """Visited channel ids, most-recently-opened first (finder recency)."""
+        rows = self._conn.execute(
+            "SELECT channel_id FROM channel_visits WHERE workspace_id = ? "
+            "ORDER BY last_visited DESC",
+            (workspace_id,),
+        ).fetchall()
+        return [r["channel_id"] for r in rows]
+
     def last_visited_channel(self, workspace_id: str) -> str | None:
         """The most recently opened channel for a workspace (for restore on launch)."""
         row = self._conn.execute(
