@@ -64,6 +64,26 @@ async def test_unread_channels_seeded_from_client_counts():
         assert "C1" not in unread   # the channel opened on launch is read
 
 
+async def test_event_consumer_survives_a_handler_exception():
+    from slak.slack import Typing
+
+    app = make_app()  # C1 active, seeded with one message
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+
+        def boom(client, event):
+            raise RuntimeError("boom")
+
+        app._on_typing = boom  # the next Typing event will blow up mid-dispatch
+        await app.client.emit_event(Typing("C1", "U2"))
+        await app.client.post_message("C1", "still works")  # must still be handled
+        for _ in range(4):
+            await pilot.pause()
+        pane = app.query_one("#messages", MessagePane)
+        assert len(pane.children) == 2  # seeded + "still works" (loop didn't die)
+
+
 async def test_sidebar_channel_names_clip_not_wrap():
     from textual.widgets import ListItem, Static
 

@@ -1006,6 +1006,12 @@ class PyslkApp(App):
     async def _consume_events(self, client: SlackClient) -> None:
         while True:
             event = await client.next_event()
+            try:
+                await self._dispatch_event(client, event)
+            except Exception as exc:  # never let one bad event kill live updates
+                self.log(f"event handling failed: {exc!r}")
+
+    async def _dispatch_event(self, client: SlackClient, event) -> None:
             if isinstance(event, NewMessage):
                 persist_messages(
                     self.cache, client.team_id, event.channel_id, [event.message]
@@ -1021,7 +1027,7 @@ class PyslkApp(App):
                         self.query_one("#thread", ThreadPanel).add_reply(
                             msg, self._name_of
                         )
-                    continue  # thread replies don't touch the main pane
+                    return  # thread replies don't touch the main pane
                 is_active_view = (
                     client is self.client and event.channel_id == self.active_channel
                 )
