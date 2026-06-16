@@ -47,6 +47,9 @@ Early MVP scaffold. Working today:
   per-workspace override) — grouped, collapsible channel headers.
 - **Reconnect backfill** — on RTM reconnect, fetches each channel's missed history
   (4-wide pool, deduped per workspace) and refreshes threads/the open channel.
+- **Block Kit & legacy attachments** — bot/app messages (`blocks`/`attachments`)
+  render as headers, sections + field grids, context, dividers, and muted control
+  labels, instead of being dropped.
 
 Not yet wired: Slack-native sections / stars, the full ~70-theme set, Block Kit,
 MCP server. See the spec set for the full roadmap.

@@ -35,6 +35,7 @@ from textual.screen import ModalScreen
 
 from rich.markup import escape
 
+from slak.blockkit import render_extras
 from slak.emoji import emoji_glyph
 from slak.finder import rank_by_name
 from slak.help import render_help
@@ -299,6 +300,13 @@ class MessagePane(VerticalScroll, can_focus=True):
         author = escape(self._name_of(m.user_id))
         text = render_message(m.text, self._name_of, self._custom_render)
         body = f"[b]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{text}"
+        extras = (
+            render_extras(m.raw_json, self._name_of, self._custom_render)
+            if getattr(m, "raw_json", "")
+            else []
+        )
+        if extras:
+            body += "\n" + "\n".join(extras)
         if m.reactions:
             # dim only the count — the emoji's own markup (esp. a kitty image
             # placeholder, whose fg colour encodes the image id) must be untouched
