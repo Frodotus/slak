@@ -140,6 +140,35 @@ async def test_opening_channel_persists_history_to_cache():
         assert cached[0].workspace_id == "T1"
 
 
+async def test_reopens_last_used_channel_on_restart(tmp_path):
+    db = str(tmp_path / "cache.db")  # file-backed so it survives a "restart"
+
+    def build() -> PyslkApp:
+        client = FakeSlackClient(
+            team_id="T1", team_name="Acme",
+            channels=[RemoteChannel("C1", "general"), RemoteChannel("C2", "random")],
+            history={"C2": [RemoteMessage("5.0", "u", "hi")]},
+        )
+        return PyslkApp(
+            router=WorkspaceRouter.single(client), cache=Cache.open(db), config=Config()
+        )
+
+    first = build()
+    async with first.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        assert first.active_channel == "C1"  # defaults to first on a fresh cache
+        await first.open_channel("C2")
+        for _ in range(2):
+            await pilot.pause()
+
+    second = build()  # "restart" with the same cache
+    async with second.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        assert second.active_channel == "C2"  # restored last-used channel
+
+
 async def test_compose_is_focused_on_launch():
     app = make_app()
     async with app.run_test() as pilot:

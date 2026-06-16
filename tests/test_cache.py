@@ -162,3 +162,15 @@ def test_open_rebuilds_stale_fts_index(tmp_path):
     cache.add_message(Message(ts="1.0", channel_id="C1", workspace_id="T1", text="hello there"))
     assert cache.search_messages("C1", "there") == ["1.0"]
     cache.close()
+
+
+def test_channel_visits_track_most_recent():
+    cache = Cache.open(":memory:")
+    assert cache.last_visited_channel("T1") is None
+    cache.record_visit("T1", "C1")
+    cache.record_visit("T1", "C2")
+    cache.record_visit("T1", "C1")   # revisit bumps it to most recent
+    assert cache.last_visited_channel("T1") == "C1"
+    cache.record_visit("T1", "C3")
+    assert cache.last_visited_channel("T1") == "C3"
+    assert cache.last_visited_channel("T2") is None  # per-workspace

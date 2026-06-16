@@ -68,6 +68,13 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_ts, channel_id);
 
+CREATE TABLE IF NOT EXISTS channel_visits (
+    workspace_id  TEXT NOT NULL,
+    channel_id    TEXT NOT NULL,
+    last_visited  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (workspace_id, channel_id)
+);
+
 CREATE TABLE IF NOT EXISTS thread_subscriptions (
     workspace_id  TEXT NOT NULL,
     channel_id    TEXT NOT NULL,
@@ -484,6 +491,28 @@ class Cache:
             (last_read_ts, int(has_unread), channel_id),
         )
         self._conn.commit()
+
+    def record_visit(self, workspace_id: str, channel_id: str) -> None:
+        """Record that a channel was just opened (most-recent wins, tie-proof)."""
+        nxt = self._conn.execute(
+            "SELECT COALESCE(MAX(last_visited), 0) + 1 FROM channel_visits"
+        ).fetchone()[0]
+        self._conn.execute(
+            "INSERT INTO channel_visits (workspace_id, channel_id, last_visited) "
+            "VALUES (?, ?, ?) "
+            "ON CONFLICT(workspace_id, channel_id) DO UPDATE SET last_visited = ?",
+            (workspace_id, channel_id, nxt, nxt),
+        )
+        self._conn.commit()
+
+    def last_visited_channel(self, workspace_id: str) -> str | None:
+        """The most recently opened channel for a workspace (for restore on launch)."""
+        row = self._conn.execute(
+            "SELECT channel_id FROM channel_visits WHERE workspace_id = ? "
+            "ORDER BY last_visited DESC LIMIT 1",
+            (workspace_id,),
+        ).fetchone()
+        return row["channel_id"] if row else None
 
     def set_channel_unread(self, channel_id: str, has_unread: bool) -> None:
         """Flip a channel's unread flag without touching its last-read pointer."""

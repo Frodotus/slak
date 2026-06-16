@@ -422,7 +422,10 @@ class PyslkApp(App):
         await self._load_thread_subscriptions(client)
         self.active_channel = None
         if channels:
-            await self.open_channel(channels[0].id)
+            ids = {c.id for c in channels}
+            last = self.cache.last_visited_channel(client.team_id)
+            target = last if last in ids else channels[0].id
+            await self.open_channel(target)
         else:
             self.query_one("#messages", MessagePane).set_messages([], self._name_of)
         self._refresh_sidebar_unread()
@@ -659,8 +662,10 @@ class PyslkApp(App):
             self._typing.clear()
             self._render_typing()
         self.active_channel = channel_id
-        if record_history and (team := self.router.active_team_id()) is not None:
-            self._nav_for(team).visit(channel_id)
+        if (team := self.router.active_team_id()) is not None:
+            self.cache.record_visit(team, channel_id)  # remember last-used channel
+            if record_history:
+                self._nav_for(team).visit(channel_id)
         name = self._channel_names.get(channel_id, channel_id)
         self.query_one("#header", Static).update(f"#{name}")
         # cache-first: render what we have instantly…
