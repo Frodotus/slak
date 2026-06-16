@@ -130,6 +130,51 @@ async def test_section_ws_event_refreshes_the_sidebar():
         assert list(sidebar._section_ids.values()) == ["Design"]
 
 
+def test_native_groups_route_unassigned_channels_to_default_type_sections():
+    # like slk: a channel not in a custom section falls into the default
+    # Channels/DMs section for its type — never a generic ungrouped bucket.
+    client = FakeSlackClient(team_id="T1", team_name="Acme")
+    app = PyslkApp(
+        router=WorkspaceRouter.single(client),
+        cache=Cache.open(":memory:"),
+        config=Config(),
+    )
+    sections = [
+        RemoteSection("eng", "Engineering", "standard", channel_ids=["C2"]),
+        RemoteSection("chs", "Channels", "channels"),          # no explicit ids
+        RemoteSection("dms", "Direct Messages", "direct_messages"),
+    ]
+    channels = [
+        RemoteChannel("C1", "general", "channel"),
+        RemoteChannel("C2", "eng-web", "channel"),
+        RemoteChannel("D1", "dave", "dm"),
+    ]
+    groups = {name: [c.id for c in chans] for name, chans in app._native_groups(sections, channels)}
+    assert groups["Engineering"] == ["C2"]
+    assert groups["Channels"] == ["C1"]        # unassigned channel routed here
+    assert groups["Direct Messages"] == ["D1"]  # DM routed by type
+    assert None not in groups                   # nothing dumped ungrouped
+
+
+def test_native_groups_hide_empty_non_standard_sections():
+    client = FakeSlackClient(team_id="T1", team_name="Acme")
+    app = PyslkApp(
+        router=WorkspaceRouter.single(client),
+        cache=Cache.open(":memory:"),
+        config=Config(),
+    )
+    sections = [
+        RemoteSection("eng", "Engineering", "standard"),   # empty standard -> kept
+        RemoteSection("apps", "Apps", "recent_apps"),      # empty -> dropped
+        RemoteSection("chs", "Channels", "channels"),
+    ]
+    channels = [RemoteChannel("C1", "general", "channel")]
+    names = [name for name, _ in app._native_groups(sections, channels)]
+    assert "Engineering" in names   # standard kept even when empty
+    assert "Apps" not in names      # empty non-standard dropped
+    assert "Channels" in names      # has the routed channel
+
+
 async def test_app_renders_native_section_groups():
     client = FakeSlackClient(
         team_id="T1", team_name="Acme",

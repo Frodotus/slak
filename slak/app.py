@@ -471,15 +471,42 @@ class PyslkApp(App):
             await self._populate_sidebar()
 
     def _native_groups(self, sections, channels):
-        by_id = {c.id: c for c in channels}
-        assigned: set[str] = set()
+        """Group channels under Slack-native sections (mirrors slk).
+
+        A channel explicitly in a section's ``channel_ids`` goes there; any other
+        channel falls into the default section for its type (DMs → direct_messages,
+        else → channels) rather than a generic bucket. Empty non-standard sections
+        are hidden; standard (custom) sections always render."""
+        ordered = order_native_sections(sections)
+        explicit: dict[str, str] = {}
+        for s in sections:
+            for cid in s.channel_ids:
+                explicit.setdefault(cid, s.id)
+
+        def first_id(section_type: str) -> str:
+            return next((s.id for s in ordered if s.type == section_type), "")
+
+        dm_id, channels_id = first_id("direct_messages"), first_id("channels")
+
+        def section_of(ch) -> str:
+            if ch.id in explicit:
+                return explicit[ch.id]
+            if ch.type in ("dm", "group_dm"):
+                return dm_id or channels_id
+            return channels_id
+
+        buckets: dict[str, list] = {s.id: [] for s in ordered}
+        ungrouped = []
+        for ch in channels:
+            sid = section_of(ch)
+            (buckets[sid] if sid in buckets else ungrouped).append(ch)
+
         groups = []
-        for s in order_native_sections(sections):
-            chans = [by_id[cid] for cid in s.channel_ids if cid in by_id]
-            assigned.update(c.id for c in chans)
+        for s in ordered:
+            if s.type != "standard" and not buckets[s.id]:
+                continue  # hide empty Channels/DMs/Apps; keep empty custom sections
             label = f"{s.emoji} {s.name}".strip() if s.emoji else s.name
-            groups.append((label, chans))
-        ungrouped = [c for c in channels if c.id not in assigned]
+            groups.append((label, buckets[s.id]))
         if ungrouped:
             groups.append((None, ungrouped))
         return groups
