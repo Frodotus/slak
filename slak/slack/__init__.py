@@ -154,6 +154,11 @@ class SectionsChanged:
 
 
 @dataclass
+class StarsChanged:
+    """A star_added/star_removed WS event — the app re-fetches stars (spec 03 §9)."""
+
+
+@dataclass
 class PresenceChanged:
     presence: str  # "auto" | "away"
 
@@ -171,6 +176,7 @@ Event = (
     | MessageEdited
     | MessageDeleted
     | SectionsChanged
+    | StarsChanged
     | PresenceChanged
     | DndChanged
 )
@@ -216,6 +222,8 @@ class SlackClient(Protocol):
 
     async def list_channel_sections(self) -> list["RemoteSection"]: ...
 
+    async def list_stars(self) -> list[str]: ...
+
     async def search(self, query: str) -> list[SearchResult]: ...
 
     async def list_custom_emoji(self) -> dict[str, str]: ...
@@ -242,6 +250,7 @@ class FakeSlackClient:
         custom_emoji: dict[str, str] | None = None,
         thread_subs: list["ThreadSub"] | None = None,
         sections: list["RemoteSection"] | None = None,
+        stars: list[str] | None = None,
     ):
         self.team_id = team_id
         self.team_name = team_name
@@ -252,6 +261,7 @@ class FakeSlackClient:
         self._custom_emoji = custom_emoji or {}
         self._thread_subs = list(thread_subs or [])
         self._sections = list(sections or [])
+        self._stars = list(stars or [])
         self._events: asyncio.Queue[Event] = asyncio.Queue()
         self._self_user = "Uself"
         self.self_user_id = "Uself"
@@ -356,6 +366,9 @@ class FakeSlackClient:
 
     async def list_channel_sections(self) -> list["RemoteSection"]:
         return list(self._sections)
+
+    async def list_stars(self) -> list[str]:
+        return list(self._stars)
 
     async def list_users(self) -> list[RemoteUser]:
         return list(self._users.values())

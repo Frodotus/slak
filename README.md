@@ -61,8 +61,11 @@ Early MVP scaffold. Working today:
   (`slak_set_draft`, draft-only — you review and send). Adapter: `slak --mcp`
   (needs `pip install 'slak[mcp]'`).
 
-Not yet wired: stars section, ANSI-palette themes, sixel image protocol.
-See the spec set for the full roadmap.
+Starred channels/DMs surface in a pinned `★ Starred` section (live on
+`star_added`/`star_removed`).
+
+Not yet wired: ANSI-palette themes, sixel image protocol. See the spec set for
+the full roadmap.
 
 ## Use a real workspace
 

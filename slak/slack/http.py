@@ -40,6 +40,7 @@ from slak.slack import (
     DndChanged,
     RemoteSection,
     SectionsChanged,
+    StarsChanged,
     PresenceChanged,
     Reaction,
     ReactionUpdated,
@@ -155,6 +156,8 @@ def parse_rtm_event(data: dict) -> Event | None:
         )
     if kind and kind.startswith("channel_section"):  # created/updated/deleted/channels_*
         return SectionsChanged()
+    if kind in ("star_added", "star_removed"):
+        return StarsChanged()
     if kind == "message" and data.get("subtype") == "message_changed":
         edited = data.get("message", {})
         return MessageEdited(
@@ -293,6 +296,14 @@ class HttpSlackClient:
                     ),
                 )
             )
+        return out
+
+    async def list_stars(self) -> list[str]:
+        data = await self._call("stars.list", count=200)
+        out: list[str] = []
+        for item in data.get("items", []):
+            if item.get("type") in ("channel", "im", "group") and item.get("channel"):
+                out.append(item["channel"])
         return out
 
     async def open_conversation(self, user_ids: list[str]) -> RemoteChannel:

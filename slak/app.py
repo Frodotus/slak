@@ -71,6 +71,7 @@ from slak.slack import (
     ReactionUpdated,
     SectionsChanged,
     SlackClient,
+    StarsChanged,
 )
 from slak.ui.commands import PyslkCommands
 from slak.ui.widgets import (
@@ -159,6 +160,7 @@ class PyslkApp(App):
         self._view: str = "channels"  # "channels" | "threads" (spec 03 §8)
         self._collapsed_sections: dict[str, set[str]] = {}  # team_id -> names
         self._native_sections: dict[str, list] = {}  # team_id -> [RemoteSection]
+        self._stars: dict[str, set[str]] = {}  # team_id -> starred channel ids
         self._sidebar_channels: list = []  # active workspace's channels
         self._last_backfill: dict[str, float] = {}  # team_id -> monotonic ts
         self._search_matches: list[str] = []
@@ -403,6 +405,7 @@ class PyslkApp(App):
         self._upsert_channels(client.team_id, channels)
         self._sidebar_channels = channels
         await self._load_native_sections(client)
+        await self._load_stars(client)
         await self._populate_sidebar()
         await self._load_thread_subscriptions(client)
         self.active_channel = None
@@ -454,6 +457,19 @@ class PyslkApp(App):
         if client is self.client:
             await self._populate_sidebar()
 
+    async def _load_stars(self, client: SlackClient) -> None:
+        try:
+            stars = await client.list_stars()
+        except Exception as exc:
+            self.log(f"stars fetch failed: {exc!r}")
+            return
+        self._stars[client.team_id] = set(stars)
+
+    async def _reload_stars(self, client: SlackClient) -> None:
+        await self._load_stars(client)
+        if client is self.client:
+            await self._populate_sidebar()
+
     def _native_groups(self, sections, channels):
         by_id = {c.id: c for c in channels}
         assigned: set[str] = set()
@@ -469,26 +485,36 @@ class PyslkApp(App):
         return groups
 
     async def _populate_sidebar(self) -> None:
-        """Render the sidebar — Slack-native sections, else config-glob sections,
-        else a flat channel list (spec 03 §9)."""
+        """Render the sidebar — a pinned ★ Starred section (if any), then
+        Slack-native sections, else config-glob sections, else a flat list.
+        Starred channels appear only in the Starred section (spec 03 §9)."""
         team = self.router.active_team_id() or ""
         sidebar = self.query_one("#sidebar", Sidebar)
-        native = self._native_sections.get(team)
         collapsed = self._collapsed_sections.setdefault(team, set())
-        if native:
-            groups = self._native_groups(native, self._sidebar_channels)
-            await sidebar.set_sections(groups, collapsed)
-            return
+        starred = self._stars.get(team, set())
+        rest = [c for c in self._sidebar_channels if c.id not in starred]
+
+        native = self._native_sections.get(team)
         section_names = list(self.config.sections_for(team))
-        if section_names:
+        if native:
+            groups = self._native_groups(native, rest)
+        elif section_names:
             groups = section_layout(
-                section_names,
-                lambda n: self.config.match_section(team, n),
-                self._sidebar_channels,
+                section_names, lambda n: self.config.match_section(team, n), rest
             )
+        else:
+            # flat: only need an ungrouped bucket when a Starred section forces grouping
+            star_chans = [c for c in self._sidebar_channels if c.id in starred]
+            groups = [(None, rest)] if star_chans else []
+
+        star_chans = [c for c in self._sidebar_channels if c.id in starred]
+        if star_chans:
+            groups = [("★ Starred", star_chans)] + groups
+
+        if groups:
             await sidebar.set_sections(groups, collapsed)
         else:
-            await sidebar.set_channels(self._sidebar_channels)
+            await sidebar.set_channels(rest)
 
     async def _toggle_section(self, name: str) -> None:
         team = self.router.active_team_id() or ""
@@ -935,6 +961,8 @@ class PyslkApp(App):
                             pass
             elif isinstance(event, SectionsChanged):
                 self.run_worker(self._reload_sections(client), exclusive=False)
+            elif isinstance(event, StarsChanged):
+                self.run_worker(self._reload_stars(client), exclusive=False)
             elif isinstance(event, PresenceChanged):
                 _, end = self._presence.get(client.team_id, ("auto", 0.0))
                 self._presence[client.team_id] = (event.presence, end)
