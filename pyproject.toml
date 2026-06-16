@@ -4,8 +4,14 @@ version = "0.1.0"
 description = "A modern, non-modal terminal Slack client built on Textual"
 readme = "README.md"
 license = { file = "LICENSE" }
+authors = [{ name = "Toni Leino" }]
+keywords = ["slack", "tui", "terminal", "textual", "chat", "client"]
 classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Communications :: Chat",
 ]
 requires-python = ">=3.12"
 dependencies = [
@@ -27,6 +33,11 @@ dev = [
 mcp = [
     "mcp>=1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Frodotus/slak"
+Repository = "https://github.com/Frodotus/slak"
+Issues = "https://github.com/Frodotus/slak/issues"
 
 [project.scripts]
 slak = "slak.__main__:main"
