@@ -43,9 +43,11 @@ Early MVP scaffold. Working today:
   never rewrites your config).
 - A `⚑ Threads` sidebar row opens the **threads view** — your subscribed threads,
   newest-reply first; the side panel follows the cursor.
+- **Sidebar sections** via config globs (`[sections.<name>] patterns = [...]`,
+  per-workspace override) — grouped, collapsible channel headers.
 
-Not yet wired: the full ~70-theme set, sidebar sections, Block Kit, MCP server.
-See the spec set for the full roadmap.
+Not yet wired: Slack-native sections / stars, the full ~70-theme set, Block Kit,
+MCP server. See the spec set for the full roadmap.
 
 ## Use a real workspace
 

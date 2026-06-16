@@ -90,6 +90,8 @@ def _channel_glyph(ch: RemoteChannel) -> str:
 
 # Synthetic sidebar row that opens the threads view (spec 03 §8).
 THREADS_ROW_ID = "threads-landmark"
+# Prefix for collapsible section-header rows (spec 03 §9).
+SECTION_PREFIX = "sec-"
 
 
 class Sidebar(ListView):
@@ -103,13 +105,42 @@ class Sidebar(ListView):
         super().__init__(*args, **kwargs)
         self._channels: list[RemoteChannel] = []
         self._unread: set[str] = set()
+        self._section_ids: dict[str, str] = {}  # item id -> section name
 
     async def set_channels(self, channels: list[RemoteChannel]) -> None:
         self._channels = channels
+        self._section_ids = {}
         await self.clear()  # await: removal is deferred, must finish before re-adding
         self.append(ListItem(Static("⚑ Threads"), id=THREADS_ROW_ID))
         for ch in channels:
             self.append(ListItem(Static(self._label(ch)), id=ch.id))
+
+    async def set_sections(self, groups, collapsed: set[str]) -> None:
+        """Render channels grouped under collapsible section headers (spec 03 §9).
+
+        ``groups`` is ``[(section_name | None, [channels])]``; a collapsed
+        section shows only its header. Header rows carry ids ``sec-<n>`` mapped
+        back to names via :meth:`section_for`.
+        """
+        self._channels = [c for _, chans in groups for c in chans]
+        self._section_ids = {}
+        await self.clear()
+        self.append(ListItem(Static("⚑ Threads"), id=THREADS_ROW_ID))
+        for i, (name, chans) in enumerate(groups):
+            if name is not None:
+                item_id = f"{SECTION_PREFIX}{i}"
+                self._section_ids[item_id] = name
+                arrow = "▸" if name in collapsed else "▾"
+                self.append(
+                    ListItem(Static(f"[b]{arrow} {name}[/]"), id=item_id)
+                )
+                if name in collapsed:
+                    continue
+            for ch in chans:
+                self.append(ListItem(Static(self._label(ch)), id=ch.id))
+
+    def section_for(self, item_id: str) -> str | None:
+        return self._section_ids.get(item_id)
 
     def add_channel(self, ch: RemoteChannel) -> None:
         """Append one channel (e.g. a freshly-opened DM) if not already listed."""

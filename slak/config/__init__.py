@@ -23,11 +23,14 @@ Slack team id (matching ``^[TE][A-Z0-9]{6,}$``) remain supported.
 
 from __future__ import annotations
 
+import fnmatch
 import re
 import tomllib
 from dataclasses import dataclass, field
 
 import tomlkit
+
+from slak.text import fold
 
 LEGACY_TEAM_ID = re.compile(r"^[TE][A-Z0-9]{6,}$")
 DEFAULT_THEME = "dark"
@@ -48,6 +51,18 @@ def slugify(name: str, existing: set[str]) -> str:
     return f"{base}-{n}"
 
 
+def _parse_sections(raw: dict) -> dict[str, list[str]]:
+    """Normalise a ``[sections.*]`` block to ``{name: [glob, …]}``.
+
+    Accepts both the TOML form (``[sections.Eng] patterns = [...]``) and a plain
+    ``name -> [glob]`` mapping.
+    """
+    out: dict[str, list[str]] = {}
+    for name, val in raw.items():
+        out[name] = list(val.get("patterns", [])) if isinstance(val, dict) else list(val)
+    return out
+
+
 @dataclass
 class WorkspaceConfig:
     slug: str
@@ -55,6 +70,7 @@ class WorkspaceConfig:
     theme: str | None = None
     order: int = 0
     use_slack_sections: bool | None = None
+    sections: dict[str, list[str]] | None = None
 
 
 @dataclass
@@ -70,6 +86,7 @@ class Config:
     notify_on_mention: bool = True
     notify_on_dm: bool = True
     notify_keywords: list[str] = field(default_factory=list)
+    sections: dict[str, list[str]] = field(default_factory=dict)
     workspaces: list[WorkspaceConfig] = field(default_factory=list)
 
     @classmethod
@@ -91,6 +108,11 @@ class Config:
                     theme=block.get("theme"),
                     order=int(block.get("order", 0)),
                     use_slack_sections=block.get("use_slack_sections"),
+                    sections=(
+                        _parse_sections(block["sections"])
+                        if "sections" in block
+                        else None
+                    ),
                 )
             )
 
@@ -106,6 +128,7 @@ class Config:
             notify_on_mention=bool(notif.get("on_mention", True)),
             notify_on_dm=bool(notif.get("on_dm", True)),
             notify_keywords=list(notif.get("on_keyword", [])),
+            sections=_parse_sections(data.get("sections", {})),
             workspaces=workspaces,
         )
 
@@ -140,6 +163,14 @@ class Config:
         if self.theme_overrides:
             doc["theme"] = self.theme_overrides
 
+        if self.sections:
+            sec_table = tomlkit.table()
+            for name, globs in self.sections.items():
+                block = tomlkit.table()
+                block["patterns"] = globs
+                sec_table[name] = block
+            doc["sections"] = sec_table
+
         if self.workspaces:
             ws_table = tomlkit.table()
             for ws in self.workspaces:
@@ -152,6 +183,13 @@ class Config:
                     block["order"] = ws.order
                 if ws.use_slack_sections is not None:
                     block["use_slack_sections"] = ws.use_slack_sections
+                if ws.sections is not None:
+                    ws_sec = tomlkit.table()
+                    for name, globs in ws.sections.items():
+                        inner = tomlkit.table()
+                        inner["patterns"] = globs
+                        ws_sec[name] = inner
+                    block["sections"] = ws_sec
                 ws_table[ws.slug] = block
             doc["workspaces"] = ws_table
 
@@ -180,6 +218,21 @@ class Config:
     def set_default_theme(self, theme: str) -> None:
         """Set the global default theme for workspaces without their own."""
         self.theme = theme
+
+    def sections_for(self, team_id: str) -> dict[str, list[str]]:
+        """Section globs for a workspace — per-workspace fully replaces global."""
+        ws = self._by_team_id(team_id)
+        if ws is not None and ws.sections is not None:
+            return ws.sections
+        return self.sections
+
+    def match_section(self, team_id: str, channel_name: str) -> str | None:
+        """The first config section whose globs match ``channel_name`` (or None)."""
+        folded = fold(channel_name)
+        for name, globs in self.sections_for(team_id).items():
+            if any(fnmatch.fnmatchcase(folded, fold(g)) for g in globs):
+                return name
+        return None
 
     def slug_for(self, team_id: str) -> str | None:
         ws = self._by_team_id(team_id)

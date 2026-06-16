@@ -90,6 +90,7 @@ from slak.ui.widgets import (
     WorkspaceSwitcher,
 )
 from slak.ui.widgets import THREADS_ROW_ID
+from slak.sections import layout as section_layout
 from slak import themes
 from slak.workspace import WorkspaceRouter
 
@@ -151,6 +152,8 @@ class PyslkApp(App):
         self.open_thread_ts: str = ""
         self.open_thread_channel: str = ""
         self._view: str = "channels"  # "channels" | "threads" (spec 03 §8)
+        self._collapsed_sections: dict[str, set[str]] = {}  # team_id -> names
+        self._sidebar_channels: list = []  # active workspace's channels
         self._search_matches: list[str] = []
         self._search_idx: int = 0
         self._presence: dict[str, tuple[str, float]] = {}  # team -> (presence, dnd_end)
@@ -384,7 +387,8 @@ class PyslkApp(App):
         channels = await client.list_channels()
         self._channel_names = {ch.id: ch.name for ch in channels}
         self._upsert_channels(client.team_id, channels)
-        await self.query_one("#sidebar", Sidebar).set_channels(channels)
+        self._sidebar_channels = channels
+        await self._populate_sidebar()
         await self._load_thread_subscriptions(client)
         self.active_channel = None
         if channels:
@@ -417,6 +421,30 @@ class PyslkApp(App):
         channel_id = self._nav_for(team).forward(self._valid_channels(team))
         if channel_id:
             await self.open_channel(channel_id, record_history=False)
+
+    async def _populate_sidebar(self) -> None:
+        """Render the sidebar — grouped into config sections if any are defined,
+        else a flat channel list (spec 03 §9)."""
+        team = self.router.active_team_id() or ""
+        sidebar = self.query_one("#sidebar", Sidebar)
+        section_names = list(self.config.sections_for(team))
+        if section_names:
+            groups = section_layout(
+                section_names,
+                lambda n: self.config.match_section(team, n),
+                self._sidebar_channels,
+            )
+            collapsed = self._collapsed_sections.setdefault(team, set())
+            await sidebar.set_sections(groups, collapsed)
+        else:
+            await sidebar.set_channels(self._sidebar_channels)
+
+    async def _toggle_section(self, name: str) -> None:
+        team = self.router.active_team_id() or ""
+        collapsed = self._collapsed_sections.setdefault(team, set())
+        collapsed ^= {name}
+        await self._populate_sidebar()
+        self._refresh_sidebar_unread()
 
     async def _load_thread_subscriptions(self, client: SlackClient) -> None:
         try:
@@ -641,6 +669,10 @@ class PyslkApp(App):
             return
         if event.item.id == THREADS_ROW_ID:
             await self._enter_threads_view()
+            return
+        section = self.query_one("#sidebar", Sidebar).section_for(event.item.id)
+        if section is not None:
+            await self._toggle_section(section)
         else:
             await self.open_channel(event.item.id)  # exits threads view if active
 
