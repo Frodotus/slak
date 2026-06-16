@@ -32,8 +32,10 @@ Early MVP scaffold. Working today:
 - `Ctrl+W` opens a filterable workspace switcher (beyond the `Alt+1`…`Alt+9` jumps);
   `Alt+←`/`Alt+→` walk channel history back/forward.
 
-Not yet wired: `Ctrl+N` new-message composer, edit/delete message, open-links,
-theme switching, MCP server. See the spec set for the full roadmap.
+- `Ctrl+O` opens link(s) in the selected message (picker when there's more than one).
+
+Not yet wired: `Ctrl+N` new-message composer, edit/delete message, theme
+switching, MCP server. See the spec set for the full roadmap.
 
 ## Use a real workspace
 

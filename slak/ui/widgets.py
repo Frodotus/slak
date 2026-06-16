@@ -23,6 +23,7 @@ The App owns data flow and Slack/cache interaction.
 from __future__ import annotations
 
 import time
+from types import SimpleNamespace
 
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -491,6 +492,19 @@ class WorkspaceSwitcher(FuzzyPicker):
 
     PREFIX = "wsswitch"
     PLACEHOLDER = "Switch workspace…"
+
+
+class LinkPicker(FuzzyPicker):
+    """Pick a URL to open when a message has several (``Ctrl+O``, spec 04).
+
+    Built from a list of URL strings; dismisses with the chosen URL or ``None``.
+    """
+
+    PREFIX = "linkpick"
+    PLACEHOLDER = "Open link…"
+
+    def __init__(self, urls: list[str]):
+        super().__init__([SimpleNamespace(id=u, name=u) for u in urls])
 
 
 class HelpModal(ModalScreen):

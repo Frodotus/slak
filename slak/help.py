@@ -58,6 +58,7 @@ KEYBINDINGS: list[tuple[str, list[tuple[str, str]]]] = [
             ("↑ / ↓", "Select previous / next message"),
             ("Enter", "Open thread"),
             ("Ctrl+R", "Add reaction"),
+            ("Ctrl+O", "Open link(s) in the message"),
         ],
     ),
 ]

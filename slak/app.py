@@ -28,8 +28,10 @@ import os
 import re
 import sys
 import time
+import webbrowser
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Callable
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -40,6 +42,7 @@ from slak.cache import Cache, Channel
 from slak.debuglog import debug
 from slak.emoji import resolve_custom_emoji
 from slak.images import EmojiImages, detect_protocol, tmux_passthrough
+from slak.links import extract_links
 from slak.nav import NavHistory
 from slak.text import fold
 from slak.config import Config
@@ -69,6 +72,7 @@ from slak.ui.widgets import (
     ChannelFinder,
     ComposeInput,
     HelpModal,
+    LinkPicker,
     MentionPopup,
     MessagePane,
     Rail,
@@ -100,6 +104,7 @@ class PyslkApp(App):
         Binding("alt+right", "history_forward", show=False),
         Binding("f1", "help", show=False, priority=True),
         Binding("ctrl+r", "react", show=False),
+        Binding("ctrl+o", "open_links", show=False),
         Binding("ctrl+f", "search", show=False),
         Binding("ctrl+shift+f", "search_workspace", show=False),
     ]
@@ -110,12 +115,14 @@ class PyslkApp(App):
         cache: Cache,
         config: Config,
         notifier: Notifier | None = None,
+        url_opener: Callable[[str], object] | None = None,
     ):
         super().__init__()
         self.router = router
         self.cache = cache
         self.config = config
         self._notifier = notifier or DesktopNotifier()
+        self._open_url = url_opener or webbrowser.open
         self.active_channel: str | None = None
         self._nav: dict[str, NavHistory] = {}  # team_id -> channel back/forward
         self._channel_names: dict[str, str] = {}
@@ -881,6 +888,24 @@ class PyslkApp(App):
         except Exception as exc:
             # surface the failure (e.g. invalid_name) instead of swallowing it
             self.notify(f"Reaction failed: {exc}", severity="error")
+
+    def action_open_links(self) -> None:
+        self.run_worker(self._open_links_flow(), exclusive=False)
+
+    async def _open_links_flow(self) -> None:
+        msg = self.query_one("#messages", MessagePane).selected_message()
+        if msg is None:
+            return
+        links = extract_links(msg.text)
+        if not links:
+            self.notify("No links in the selected message")
+            return
+        if len(links) == 1:
+            self._open_url(links[0])
+            return
+        url = await self.push_screen_wait(LinkPicker(links))
+        if url:
+            self._open_url(url)
 
 
 def _top_level(messages):
