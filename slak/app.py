@@ -417,6 +417,7 @@ class PyslkApp(App):
         self._sidebar_channels = channels
         await self._load_native_sections(client)
         await self._load_stars(client)
+        await self._load_unreads(client)
         await self._populate_sidebar()
         await self._load_thread_subscriptions(client)
         self.active_channel = None
@@ -478,6 +479,17 @@ class PyslkApp(App):
         await self._load_native_sections(client)
         if client is self.client:
             await self._populate_sidebar()
+
+    async def _load_unreads(self, client: SlackClient) -> None:
+        """Seed startup unread state from Slack (client.counts) so channels with
+        new messages show as unread before any live event arrives."""
+        try:
+            ids = await client.list_unread_channels()
+        except Exception as exc:
+            self.log(f"unread counts fetch failed: {exc!r}")
+            return
+        for cid in ids:
+            self.cache.set_channel_unread(cid, True)
 
     async def _load_stars(self, client: SlackClient) -> None:
         try:

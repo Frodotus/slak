@@ -485,6 +485,14 @@ class Cache:
         )
         self._conn.commit()
 
+    def set_channel_unread(self, channel_id: str, has_unread: bool) -> None:
+        """Flip a channel's unread flag without touching its last-read pointer."""
+        self._conn.execute(
+            "UPDATE channels SET has_unread = ? WHERE id = ?",
+            (int(has_unread), channel_id),
+        )
+        self._conn.commit()
+
     def get_workspace_read_state(self, workspace_id: str) -> dict[str, ReadState]:
         rows = self._conn.execute(
             "SELECT id, last_read_ts, has_unread FROM channels WHERE workspace_id = ?",

@@ -307,6 +307,16 @@ class HttpSlackClient:
             )
         return out
 
+    async def list_unread_channels(self) -> list[str]:
+        """Channel/DM ids with unread messages, via the internal client.counts."""
+        data = await self._call("client.counts")
+        out: list[str] = []
+        for bucket in ("channels", "mpims", "ims"):
+            for c in data.get(bucket, []):
+                if c.get("has_unreads") and c.get("id"):
+                    out.append(c["id"])
+        return out
+
     async def list_stars(self) -> list[str]:
         data = await self._call("stars.list", count=200)
         out: list[str] = []

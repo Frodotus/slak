@@ -237,6 +237,8 @@ class SlackClient(Protocol):
 
     async def send_typing(self, channel_id: str) -> None: ...
 
+    async def list_unread_channels(self) -> list[str]: ...
+
     async def search(self, query: str) -> list[SearchResult]: ...
 
     async def list_custom_emoji(self) -> dict[str, str]: ...
@@ -264,6 +266,7 @@ class FakeSlackClient:
         thread_subs: list["ThreadSub"] | None = None,
         sections: list["RemoteSection"] | None = None,
         stars: list[str] | None = None,
+        unreads: list[str] | None = None,
     ):
         self.team_id = team_id
         self.team_name = team_name
@@ -275,6 +278,7 @@ class FakeSlackClient:
         self._thread_subs = list(thread_subs or [])
         self._sections = list(sections or [])
         self._stars = list(stars or [])
+        self._unreads = list(unreads or [])
         self._events: asyncio.Queue[Event] = asyncio.Queue()
         self._self_user = "Uself"
         self.self_user_id = "Uself"
@@ -386,6 +390,9 @@ class FakeSlackClient:
 
     async def send_typing(self, channel_id: str) -> None:
         self.typing_sent.append(channel_id)
+
+    async def list_unread_channels(self) -> list[str]:
+        return list(self._unreads)
 
     async def list_users(self) -> list[RemoteUser]:
         return list(self._users.values())

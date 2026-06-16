@@ -101,6 +101,23 @@ async def test_post_message_sends_channel_and_text():
     assert msg.ts == "999.0"
 
 
+async def test_list_unread_channels_from_client_counts():
+    def handler(request):
+        return httpx.Response(200, json={
+            "ok": True,
+            "channels": [
+                {"id": "C1", "has_unreads": True},
+                {"id": "C2", "has_unreads": False},
+            ],
+            "mpims": [{"id": "G1", "has_unreads": True}],
+            "ims": [{"id": "D1", "has_unreads": False},
+                    {"id": "D2", "has_unreads": True}],
+        })
+
+    ids = await make_client(handler).list_unread_channels()
+    assert set(ids) == {"C1", "G1", "D2"}
+
+
 async def test_ok_false_auth_error_raises():
     def handler(request):
         return httpx.Response(200, json={"ok": False, "error": "invalid_auth"})

@@ -44,6 +44,26 @@ async def test_dm_channel_name_resolves_to_peer_display_name():
         assert app._sidebar_channels[0].name == "bob"
 
 
+async def test_unread_channels_seeded_from_client_counts():
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general"), RemoteChannel("C2", "random")],
+        history={"C1": [RemoteMessage("1.0", "u", "hi")]},
+        unreads=["C2"],  # has unread on Slack at launch
+    )
+    app = PyslkApp(
+        router=WorkspaceRouter.single(client),
+        cache=Cache.open(":memory:"),
+        config=Config(),
+    )
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        unread = app.query_one("#sidebar", Sidebar).unread_ids()
+        assert "C2" in unread       # shown as unread
+        assert "C1" not in unread   # the channel opened on launch is read
+
+
 async def test_sidebar_channel_names_clip_not_wrap():
     from textual.widgets import ListItem, Static
 
