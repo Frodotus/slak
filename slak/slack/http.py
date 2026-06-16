@@ -416,6 +416,13 @@ class HttpSlackClient:
         member = data.get("user")
         return _user_from_member(member) if member else None
 
+    async def bot_info(self, bot_id: str) -> str:
+        try:
+            data = await self._call("bots.info", bot=bot_id)
+        except SlackError:
+            return ""
+        return data.get("bot", {}).get("name", "")
+
     async def next_event(self) -> Event:
         return await self._events.get()
 

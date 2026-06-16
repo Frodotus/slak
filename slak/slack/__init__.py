@@ -219,6 +219,8 @@ class SlackClient(Protocol):
 
     async def user_info(self, user_id: str) -> RemoteUser | None: ...
 
+    async def bot_info(self, bot_id: str) -> str: ...
+
     async def add_reaction(self, channel_id: str, ts: str, emoji: str) -> None: ...
 
     async def remove_reaction(self, channel_id: str, ts: str, emoji: str) -> None: ...
@@ -269,6 +271,7 @@ class FakeSlackClient:
         sections: list["RemoteSection"] | None = None,
         stars: list[str] | None = None,
         unreads: list[str] | None = None,
+        bots: dict[str, str] | None = None,
     ):
         self.team_id = team_id
         self.team_name = team_name
@@ -281,6 +284,7 @@ class FakeSlackClient:
         self._sections = list(sections or [])
         self._stars = list(stars or [])
         self._unreads = list(unreads or [])
+        self._bots = dict(bots or {})
         self._events: asyncio.Queue[Event] = asyncio.Queue()
         self._self_user = "Uself"
         self.self_user_id = "Uself"
@@ -401,6 +405,9 @@ class FakeSlackClient:
 
     async def user_info(self, user_id: str) -> RemoteUser | None:
         return self._users.get(user_id)
+
+    async def bot_info(self, bot_id: str) -> str:
+        return self._bots.get(bot_id, "")
 
     async def mark(self, channel_id: str, ts: str) -> None:
         self.marks.append((channel_id, ts))

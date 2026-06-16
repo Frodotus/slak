@@ -686,6 +686,7 @@ class PyslkApp(App):
         self.run_worker(self._sync_channel(client, channel_id), exclusive=False)
         self.run_worker(self._prefetch_emoji(), exclusive=False)
         self.run_worker(self._prefetch_images(), exclusive=False)
+        self._resolve_bots()
 
     async def _sync_channel(self, client: SlackClient, channel_id: str) -> None:
         try:
@@ -700,6 +701,7 @@ class PyslkApp(App):
             )
             self.run_worker(self._prefetch_emoji(), exclusive=False)
             self.run_worker(self._prefetch_images(), exclusive=False)
+            self._resolve_bots()
             # tell Slack we've read it, so it doesn't re-report unread next launch
             if fetched:
                 self.run_worker(
@@ -870,6 +872,33 @@ class PyslkApp(App):
             names[user_id] = user.name
             if client is self.client:
                 self._refresh_messages()
+
+    async def _resolve_bot(self, client: SlackClient, bot_id: str) -> None:
+        names = self._names.setdefault(client.team_id, {})
+        key = (client.team_id, bot_id)
+        if not bot_id or bot_id in names or key in self._resolving:
+            return
+        self._resolving.add(key)
+        try:
+            name = await client.bot_info(bot_id)
+        except Exception:
+            name = ""
+        finally:
+            self._resolving.discard(key)
+        if name:
+            names[bot_id] = name
+            if client is self.client:
+                self._refresh_messages()
+
+    def _resolve_bots(self) -> None:
+        """Resolve bot_id authors (B…) of visible messages via bots.info."""
+        client = self.client
+        if client is None:
+            return
+        names = self._names.get(client.team_id, {})
+        for m in self.query_one("#messages", MessagePane)._messages:
+            if m.user_id.startswith("B") and m.user_id not in names:
+                self.run_worker(self._resolve_bot(client, m.user_id), exclusive=False)
 
     def _refresh_messages(self) -> None:
         # Re-render the messages already in the pane (preserving reactions and

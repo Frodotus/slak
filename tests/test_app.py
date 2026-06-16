@@ -773,3 +773,17 @@ async def test_group_dm_name_formats_member_handles():
         for _ in range(4):
             await pilot.pause()
         assert app._channel_names["G1"] == "Alice, Bob"
+
+
+async def test_bot_id_message_resolves_name_via_bots_info():
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("1.0", "B1", "deploy ok")]},  # bot, no username
+        bots={"B1": "CIBot"},
+    )
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"), config=Config())
+    async with app.run_test() as pilot:
+        for _ in range(5):
+            await pilot.pause()
+        assert app._name_of("B1") == "CIBot"  # resolved via bots.info
