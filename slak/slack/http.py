@@ -27,10 +27,16 @@ from __future__ import annotations
 
 import asyncio
 import json
+import urllib.parse
 
 import httpx
 
 from slak.debuglog import debug
+
+_BROWSER_UA = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
 
 from slak.slack import (
     AuthError,
@@ -411,16 +417,33 @@ class HttpSlackClient:
     async def next_event(self) -> Event:
         return await self._events.get()
 
-    async def _connect_once(self) -> None:
-        """One RTM session: connect, pump frames, return when it drops.
+    def _flannel_url(self) -> str:
+        """Slack's internal realtime WebSocket (flannel) — the browser client's
+        socket. Legacy ``rtm.connect`` is dead for xoxc tokens."""
+        token = urllib.parse.quote(self.token.access_token, safe="")
+        return (
+            f"wss://wss-primary.slack.com/?token={token}"
+            "&sync_desync=1&slack_client=desktop"
+            "&start_args=%3Fagent%3Dclient%26connect_only%3Dtrue%26ms_latest%3Dtrue"
+            "&no_query_on_subscribe=1&flannel=3&lazy_channels=1"
+            f"&gateway_server={self.team_id}-1&batch_presence_aware=1"
+        )
 
-        ``websockets`` is imported lazily so the Web API path needs no websocket
-        dependency at import time.
-        """
+    async def _connect_once(self) -> None:
+        """One realtime session: connect to the flannel WS, pump frames, return
+        when it drops. ``websockets`` is imported lazily."""
         import websockets
 
-        data = await self._call("rtm.connect")
-        async with websockets.connect(data["url"]) as ws:
+        headers = [
+            ("Cookie", f"d={self.token.cookie}"),
+            ("Sec-Fetch-Dest", "websocket"),
+        ]
+        async with websockets.connect(
+            self._flannel_url(),
+            additional_headers=headers,
+            user_agent_header=_BROWSER_UA,
+            max_size=None,  # flannel's initial state frames can be large
+        ) as ws:
             self._ws = ws  # expose for outbound frames (typing)
             await self._events.put(Connected(team_id=self.team_id))
             try:
