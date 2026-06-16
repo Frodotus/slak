@@ -27,6 +27,8 @@ import re
 import tomllib
 from dataclasses import dataclass, field
 
+import tomlkit
+
 LEGACY_TEAM_ID = re.compile(r"^[TE][A-Z0-9]{6,}$")
 DEFAULT_THEME = "dark"
 
@@ -106,6 +108,54 @@ class Config:
             notify_keywords=list(notif.get("on_keyword", [])),
             workspaces=workspaces,
         )
+
+    def dumps(self) -> str:
+        """Serialise to TOML (round-trips through :meth:`loads`).
+
+        Comment/formatting preservation of a hand-edited file is a future
+        refinement; this writes a clean, canonical document.
+        """
+        doc = tomlkit.document()
+
+        general = tomlkit.table()
+        if self.default_workspace is not None:
+            general["default_workspace"] = self.default_workspace
+        general["use_slack_sections"] = self.use_slack_sections
+        doc["general"] = general
+
+        appearance = tomlkit.table()
+        appearance["theme"] = self.theme
+        appearance["group_within_minutes"] = self.group_within_minutes
+        appearance["image_protocol"] = self.image_protocol
+        appearance["emoji_images"] = self.emoji_images
+        doc["appearance"] = appearance
+
+        notif = tomlkit.table()
+        notif["enabled"] = self.notify_enabled
+        notif["on_mention"] = self.notify_on_mention
+        notif["on_dm"] = self.notify_on_dm
+        notif["on_keyword"] = self.notify_keywords
+        doc["notifications"] = notif
+
+        if self.theme_overrides:
+            doc["theme"] = self.theme_overrides
+
+        if self.workspaces:
+            ws_table = tomlkit.table()
+            for ws in self.workspaces:
+                block = tomlkit.table()
+                if ws.team_id is not None:
+                    block["team_id"] = ws.team_id
+                if ws.theme is not None:
+                    block["theme"] = ws.theme
+                if ws.order:
+                    block["order"] = ws.order
+                if ws.use_slack_sections is not None:
+                    block["use_slack_sections"] = ws.use_slack_sections
+                ws_table[ws.slug] = block
+            doc["workspaces"] = ws_table
+
+        return tomlkit.dumps(doc)
 
     def _by_team_id(self, team_id: str) -> WorkspaceConfig | None:
         for ws in self.workspaces:

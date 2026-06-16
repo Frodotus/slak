@@ -126,6 +126,7 @@ class PyslkApp(App):
         config: Config,
         notifier: Notifier | None = None,
         url_opener: Callable[[str], object] | None = None,
+        config_path: Path | None = None,
     ):
         # Set before super().__init__(): Textual reads get_css_variables() during
         # App init, which needs the active theme name.
@@ -136,6 +137,7 @@ class PyslkApp(App):
         self.config = config
         self._notifier = notifier or DesktopNotifier()
         self._open_url = url_opener or webbrowser.open
+        self._config_path = config_path
         self.active_channel: str | None = None
         self._nav: dict[str, NavHistory] = {}  # team_id -> channel back/forward
         self._channel_names: dict[str, str] = {}
@@ -167,6 +169,16 @@ class PyslkApp(App):
     def _apply_theme(self, name: str) -> None:
         self._theme_name = name
         self.refresh_css(animate=False)
+
+    def _persist_config(self) -> None:
+        """Write config to disk if a path was provided (no-op otherwise)."""
+        if self._config_path is None:
+            return
+        try:
+            self._config_path.parent.mkdir(parents=True, exist_ok=True)
+            self._config_path.write_text(self.config.dumps())
+        except OSError as exc:
+            self.log(f"config save failed: {exc!r}")
 
     def compose(self) -> ComposeResult:
         yield Rail(id="rail")
@@ -329,6 +341,7 @@ class PyslkApp(App):
         else:
             self.config.set_workspace_theme(team, name, self.config.slug_for(team))
             self._apply_theme(name)
+        self._persist_config()
 
     def action_new_message(self) -> None:
         self.run_worker(self._new_message_flow(), exclusive=False)

@@ -127,6 +127,7 @@ def main() -> None:
     if args.demo or not tokens:
         router = WorkspaceRouter.single(demo_client())
         cache = Cache.open(":memory:")
+        config_path = None  # don't let a demo session rewrite the real config
     else:
         clients = [HttpSlackClient(t) for t in tokens]
         order = cfg.order_team_ids([t.team_id for t in tokens])
@@ -136,8 +137,9 @@ def main() -> None:
         router.set_active(default)
         CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
         cache = Cache.open(str(CACHE_PATH))
+        config_path = CONFIG_PATH
 
-    PyslkApp(router=router, cache=cache, config=cfg).run()
+    PyslkApp(router=router, cache=cache, config=cfg, config_path=config_path).run()
 
 
 if __name__ == "__main__":

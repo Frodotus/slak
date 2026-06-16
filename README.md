@@ -39,8 +39,11 @@ Early MVP scaffold. Working today:
 - `Ctrl+N` starts a new message — filter users, `Tab` to add several (group DM),
   `Enter` to open the DM.
 
-Not yet wired: on-disk theme persistence, the full ~70-theme set, MCP server.
-See the spec set for the full roadmap.
+- Theme picks persist to `~/.config/slak/config.toml` (real workspaces; the demo
+  never rewrites your config).
+
+Not yet wired: the full ~70-theme set, threads view / sections, Block Kit,
+MCP server. See the spec set for the full roadmap.
 
 ## Use a real workspace
 
