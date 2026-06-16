@@ -110,14 +110,17 @@ def kitty_placeholder_markup(image_id: int, cols: int = 2, rows: int = 1) -> str
     colour carries the low 24 bits of the image id (kitty reads it back).
     """
     color = f"#{image_id & 0xFFFFFF:06x}"
+    # Wrap EACH row in its own colour span (not one span across all rows), so the
+    # markup survives being split on newlines and interleaved with other text —
+    # e.g. the avatar gutter prefixes each row onto a different message line.
     rows_text = []
     for r in range(rows):
         cells = "".join(
             _PLACEHOLDER + chr(_DIACRITICS[r]) + chr(_DIACRITICS[c])
             for c in range(cols)
         )
-        rows_text.append(cells)
-    return f"[{color}]" + "\n".join(rows_text) + "[/]"
+        rows_text.append(f"[{color}]{cells}[/]")
+    return "\n".join(rows_text)
 
 
 class ImageCache:

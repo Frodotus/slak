@@ -42,7 +42,7 @@ from slak.cache import Cache, Channel, ThreadSubscription
 from slak.debuglog import debug
 from slak.emoji import resolve_custom_emoji
 from slak.blockkit import image_urls
-from slak.images import EmojiImages, MediaImages, detect_protocol, halfblock, tmux_passthrough
+from slak.images import EmojiImages, MediaImages, detect_protocol, tmux_passthrough
 from slak.links import extract_links
 from slak.nav import NavHistory
 from slak.text import fold
@@ -163,10 +163,10 @@ class PyslkApp(App):
         self._names: dict[str, dict[str, str]] = {}  # team_id -> {user_id: display}
         self._handles: dict[str, dict[str, str]] = {}  # team_id -> {handle: display}
         self._avatar_urls: dict[str, dict[str, str]] = {}  # team_id -> {uid: url}
-        self._avatar_markup: dict[str, str] = {}  # url -> rendered halfblock
         self._custom_emoji: dict[str, dict[str, str]] = {}  # team_id -> {name: url}
         self._emoji_images: EmojiImages | None = None
         self._media_images: MediaImages | None = None
+        self._avatar_images: MediaImages | None = None
         self._resolving: set[tuple[str, str]] = set()
         self.open_thread_ts: str = ""
         self.open_thread_channel: str = ""
@@ -775,6 +775,12 @@ class PyslkApp(App):
             media_proto, self._fetch_image,
             Path.home() / ".cache" / "slak" / "media", self._emit_raw,
         )
+        # avatars: kitty graphics on kitty (sharp), halfblock elsewhere — fixed 4×2
+        self._avatar_images = MediaImages(
+            media_proto, self._fetch_image,
+            Path.home() / ".cache" / "slak" / "avatars", self._emit_raw,
+            id_base=200_000, max_cols=AVATAR_COLS, max_rows=AVATAR_ROWS,
+        )
         debug(f"init emoji images: protocol={proto} enabled={self._emoji_images.enabled}")
 
     async def _fetch_image(self, url: str) -> bytes:
@@ -914,31 +920,26 @@ class PyslkApp(App):
                 self._refresh_messages()
 
     def _avatar_render(self, user_id: str):
-        if self.config.avatars != "on":
+        ai = self._avatar_images
+        if self.config.avatars != "on" or ai is None or not ai.enabled:
             return None
         team = self.router.active_team_id() or ""
         url = self._avatar_urls.get(team, {}).get(user_id)
-        return self._avatar_markup.get(url) if url else None
+        return ai.markup(url) if url else None
 
     async def _prefetch_avatars(self) -> None:
-        if self.config.avatars != "on":
+        ai = self._avatar_images
+        if self.config.avatars != "on" or ai is None or not ai.enabled:
             return
         team = self.router.active_team_id() or ""
         urls = self._avatar_urls.get(team, {})
-        seen, needed = set(), []
+        seen, changed = set(), False
         for m in self.query_one("#messages", MessagePane)._messages:
             url = urls.get(m.user_id)
-            if url and url not in self._avatar_markup and url not in seen:
+            if url and url not in seen and ai.markup(url) is None:
                 seen.add(url)
-                needed.append(url)
-        changed = False
-        for url in needed:
-            try:
-                raw = await self._fetch_image(url)
-                self._avatar_markup[url] = halfblock(raw, AVATAR_COLS, AVATAR_ROWS)
-                changed = True
-            except Exception:
-                pass
+                if await ai.ensure(url):
+                    changed = True
         if changed:
             self._refresh_messages()
 
