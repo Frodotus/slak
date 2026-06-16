@@ -79,6 +79,7 @@ class Config:
     theme: str = DEFAULT_THEME
     theme_overrides: dict[str, str] = field(default_factory=dict)
     use_slack_sections: bool = True
+    typing_indicators: bool = True
     group_within_minutes: int = 0
     image_protocol: str = "auto"  # auto | kitty | sixel | halfblock | off
     emoji_images: str = "on"  # on | off — kitty inline custom-emoji images
@@ -124,6 +125,7 @@ class Config:
             theme=appearance.get("theme", DEFAULT_THEME),
             theme_overrides=dict(data.get("theme", {})),
             use_slack_sections=bool(general.get("use_slack_sections", True)),
+            typing_indicators=bool(general.get("typing_indicators", True)),
             group_within_minutes=int(appearance.get("group_within_minutes", 0)),
             image_protocol=appearance.get("image_protocol", "auto"),
             emoji_images=appearance.get("emoji_images", "on"),
@@ -149,6 +151,7 @@ class Config:
         if self.default_workspace is not None:
             general["default_workspace"] = self.default_workspace
         general["use_slack_sections"] = self.use_slack_sections
+        general["typing_indicators"] = self.typing_indicators
         doc["general"] = general
 
         appearance = tomlkit.table()

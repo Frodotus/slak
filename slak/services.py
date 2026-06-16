@@ -41,6 +41,17 @@ def to_cache_message(team_id: str, channel_id: str, rm: RemoteMessage) -> Messag
     )
 
 
+def typing_text(names: list[str]) -> str:
+    """The typing-indicator line for the given display names (spec 04 §9)."""
+    if not names:
+        return ""
+    if len(names) == 1:
+        return f"{names[0]} is typing…"
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]} are typing…"
+    return "Several people are typing…"
+
+
 def format_mpdm(name: str, lookup=None) -> str:
     """Format a Slack MPIM name (``mpdm-alice--bob--carol-1``) for display.
 

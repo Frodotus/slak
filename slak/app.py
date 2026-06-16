@@ -60,6 +60,7 @@ from slak.services import (
     persist_messages,
     to_remote_message,
     translate_mentions,
+    typing_text,
     window_title,
 )
 from slak.slack import (
@@ -73,6 +74,7 @@ from slak.slack import (
     SectionsChanged,
     SlackClient,
     StarsChanged,
+    Typing,
 )
 from slak.ui.commands import PyslkCommands
 from slak.ui.widgets import (
@@ -168,6 +170,8 @@ class PyslkApp(App):
         self._search_matches: list[str] = []
         self._search_idx: int = 0
         self._presence: dict[str, tuple[str, float]] = {}  # team -> (presence, dnd_end)
+        self._typing: dict[str, float] = {}  # user_id -> expiry (monotonic)
+        self._typing_timer = None
         self._completion_active: bool = False
         self._completion_at: int = -1
         self._completion_kind: str = ""  # "@" or ":"
@@ -209,6 +213,7 @@ class PyslkApp(App):
                 yield Static("─" * 200, id="header-rule")
                 yield MessagePane(id="messages")
                 yield ThreadList(id="threads")
+                yield Static("", id="typing")
                 yield SearchBar(placeholder="Search this channel…", id="search")
                 yield MentionPopup(id="completion-popup")
                 yield ComposeInput(placeholder="Message…", id="compose")
@@ -226,6 +231,8 @@ class PyslkApp(App):
                 pass
         self.query_one("#threads", ThreadList).set_custom_render(self._custom_render)
         self.query_one("#threads", ThreadList).display = False
+        self.query_one("#typing", Static).display = False
+        self._typing_timer = self.set_interval(1, self._prune_typing, pause=True)
         self._refresh_rail()
         await self._load_active_workspace()
         self.query_one("#compose", Input).focus()
@@ -484,6 +491,36 @@ class PyslkApp(App):
         if client is self.client:
             await self._populate_sidebar()
 
+    # --- typing indicators (inbound, spec 04 §9) --------------------------
+
+    def _on_typing(self, client: SlackClient, event: Typing) -> None:
+        if not self.config.typing_indicators:
+            return
+        if client is not self.client or event.channel_id != self.active_channel:
+            return
+        if event.user_id == client.self_user_id:
+            return
+        self._typing[event.user_id] = time.monotonic() + 5.0
+        self._render_typing()
+        if self._typing_timer is not None:
+            self._typing_timer.resume()
+
+    def _prune_typing(self) -> None:
+        now = time.monotonic()
+        expired = [u for u, exp in self._typing.items() if exp <= now]
+        for u in expired:
+            del self._typing[u]
+        self._render_typing()
+        if not self._typing and self._typing_timer is not None:
+            self._typing_timer.pause()
+
+    def _render_typing(self) -> None:
+        names = [self._name_of(u) for u in self._typing]
+        text = typing_text(names)
+        widget = self.query_one("#typing", Static)
+        widget.update(text)
+        widget.display = bool(text)
+
     def _native_groups(self, sections, channels):
         """Group channels under Slack-native sections (mirrors slk).
 
@@ -605,6 +642,9 @@ class PyslkApp(App):
         if client is None:
             return
         self._exit_threads_view()
+        if channel_id != self.active_channel:
+            self._typing.clear()
+            self._render_typing()
         self.active_channel = channel_id
         if record_history and (team := self.router.active_team_id()) is not None:
             self._nav_for(team).visit(channel_id)
@@ -1007,6 +1047,8 @@ class PyslkApp(App):
                 self.run_worker(self._reload_sections(client), exclusive=False)
             elif isinstance(event, StarsChanged):
                 self.run_worker(self._reload_stars(client), exclusive=False)
+            elif isinstance(event, Typing):
+                self._on_typing(client, event)
             elif isinstance(event, PresenceChanged):
                 _, end = self._presence.get(client.team_id, ("auto", 0.0))
                 self._presence[client.team_id] = (event.presence, end)

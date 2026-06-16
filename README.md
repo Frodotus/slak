@@ -65,6 +65,8 @@ Starred channels/DMs surface in a pinned `★ Starred` section (live on
 `star_added`/`star_removed`).
 
 Themes include `ansi-dark`/`ansi-light` that follow your terminal's own 16 colours.
+- **Typing indicators** — "Alice is typing…" between the messages and compose box,
+  for the active channel (5s expiry; `[general] typing_indicators = false` to disable).
 
 Not yet wired: sixel image protocol; ANSI SGR substitution for message text.
 See the spec set for the full roadmap.

@@ -41,6 +41,7 @@ from slak.slack import (
     RemoteSection,
     SectionsChanged,
     StarsChanged,
+    Typing,
     PresenceChanged,
     Reaction,
     ReactionUpdated,
@@ -159,6 +160,8 @@ def parse_rtm_event(data: dict) -> Event | None:
         return SectionsChanged()
     if kind in ("star_added", "star_removed"):
         return StarsChanged()
+    if kind == "user_typing":
+        return Typing(channel_id=data.get("channel", ""), user_id=data.get("user", ""))
     if kind == "message" and data.get("subtype") == "message_changed":
         edited = data.get("message", {})
         return MessageEdited(

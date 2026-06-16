@@ -99,7 +99,7 @@ def test_parse_rtm_section_events():
 
     for kind in ("channel_section_updated", "channel_sections_channels_added"):
         assert isinstance(parse_rtm_event({"type": kind}), SectionsChanged)
-    assert parse_rtm_event({"type": "user_typing"}) is None
+    assert parse_rtm_event({"type": "pref_change"}) is None
 
 
 async def test_section_ws_event_refreshes_the_sidebar():

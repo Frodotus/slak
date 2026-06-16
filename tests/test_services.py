@@ -112,3 +112,14 @@ def test_format_mpdm_resolves_handles_via_lookup():
 
 def test_format_mpdm_passes_through_non_mpdm_names():
     assert format_mpdm("eng-web") == "eng-web"
+
+
+# --- typing indicator text ------------------------------------------------
+from slak.services import typing_text  # noqa: E402
+
+
+def test_typing_text_variants():
+    assert typing_text([]) == ""
+    assert typing_text(["Alice"]) == "Alice is typing…"
+    assert typing_text(["Alice", "Bob"]) == "Alice and Bob are typing…"
+    assert typing_text(["A", "B", "C"]) == "Several people are typing…"

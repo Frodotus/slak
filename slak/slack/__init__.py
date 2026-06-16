@@ -161,6 +161,14 @@ class StarsChanged:
 
 
 @dataclass
+class Typing:
+    """A ``user_typing`` WS event (spec 04 §9)."""
+
+    channel_id: str
+    user_id: str
+
+
+@dataclass
 class PresenceChanged:
     presence: str  # "auto" | "away"
 
@@ -179,6 +187,7 @@ Event = (
     | MessageDeleted
     | SectionsChanged
     | StarsChanged
+    | Typing
     | PresenceChanged
     | DndChanged
 )

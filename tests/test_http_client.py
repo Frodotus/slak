@@ -122,7 +122,7 @@ def test_parse_rtm_message_event():
 
 
 def test_parse_rtm_ignores_non_message():
-    assert parse_rtm_event({"type": "user_typing", "channel": "C1"}) is None
+    assert parse_rtm_event({"type": "pref_change", "channel": "C1"}) is None
 
 
 def test_parse_rtm_ignores_unhandled_message_subtypes():
