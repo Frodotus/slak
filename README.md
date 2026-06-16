@@ -8,68 +8,61 @@ A modern, **non-modal** terminal Slack client built on [Textual](https://textual
 > Unofficial. Uses Slack's internal browser protocol and may violate Slack's TOS.
 > Not affiliated with Slack Technologies, LLC.
 
-## Status
+## Features
 
-Early MVP scaffold. Working today:
+**Non-modal & keyboard-first.** Borderless Textual UI — workspace rail, channel
+sidebar, message pane, compose. The compose box is focused on launch, so you just
+start typing; there are no vim-style modes. `Tab` cycles focus, `Ctrl+P` opens the
+command palette (every action), and `F1` shows the full keybinding reference.
 
-- Borderless Textual shell — workspace rail, channel sidebar, message pane, compose.
-- **Non-modal:** compose is focused on launch — just type. `Tab` moves focus; the
-  command palette is `Ctrl+P`.
-- Pluggable `SlackClient` interface with an in-memory **fake** (boots with zero
-  credentials) and a real **`HttpSlackClient`** (browser-cookie auth → Web API:
-  channels, history, send; RTM realtime feed).
-- Token store (`slak --add-workspace`, `--list-workspaces`), SQLite cache
-  (messages + read-state), config (theme resolution + workspace ordering + slugs),
-  accent-insensitive matching.
+**Workspaces & navigation**
 
-- Multi-workspace switching (`Alt+1`…`Alt+9`), **`Ctrl+K` fuzzy channel finder**,
-  **`F1` keyboard-shortcut help**, threads, reactions (with inline custom-emoji
-  images on kitty), in-channel and workspace search, `@`/`:` autocomplete,
-  desktop notifications, presence/DND.
+- Multiple workspaces with concurrent live connections; `Alt+1`…`Alt+9` jump,
+  `Ctrl+W` opens a filterable switcher.
+- `Ctrl+K` fuzzy channel/DM finder; `Alt+←`/`Alt+→` walk channel history;
+  `Ctrl+B` toggles the sidebar, `Ctrl+T` the thread panel.
+- Cache-first startup: your last context renders instantly while sync runs behind it.
 
-- `Ctrl+B` toggles the sidebar; `Ctrl+T` toggles the thread panel.
+**Messaging**
 
-- `Ctrl+W` opens a filterable workspace switcher (beyond the `Alt+1`…`Alt+9` jumps);
-  `Alt+←`/`Alt+→` walk channel history back/forward.
+- Send, **edit** (`Ctrl+E`), and delete messages; reactions (`Ctrl+R`); threads with
+  a follow-the-cursor reply panel.
+- `Ctrl+N` new-message composer (DM and group DM); `@`/`:` mention & emoji
+  autocomplete; `Ctrl+O` opens link(s) in a message.
+- In-channel (`Ctrl+F`) and workspace-wide (`Ctrl+Shift+F`) search.
+- Typing indicators, both directions.
 
-- `Ctrl+O` opens link(s) in the selected message (picker when there's more than one).
-- `Ctrl+E` edits your selected message; "Delete message" (palette) removes it.
-- `Ctrl+Y` picks a colour theme for the active workspace (`Ctrl+Shift+Y` sets the
-  default), applied live with no restart. 10 built-ins, plus your own from
-  `~/.config/slak/themes/*.toml` and `[theme]` per-slot overrides; the sidebar is
-  auto-kept contrasting from the message pane (CIELAB).
-- `Ctrl+N` starts a new message — filter users, `Tab` to add several (group DM),
-  `Enter` to open the DM.
+**Sidebar**
 
-- Theme picks persist to `~/.config/slak/config.toml` (real workspaces; the demo
-  never rewrites your config).
-- A `⚑ Threads` sidebar row opens the **threads view** — your subscribed threads,
-  newest-reply first; the side panel follows the cursor.
-- **Sidebar sections** — Slack-native sections (`users.channelSections.list`,
-  linked-list order, stars on top, live-updated on `channel_section_*` events)
-  when available, else config globs (`[sections.<name>] patterns = [...]`);
-  grouped, collapsible channel headers.
-- **Reconnect backfill** — on RTM reconnect, fetches each channel's missed history
-  (4-wide pool, deduped per workspace) and refreshes threads/the open channel.
-- **Block Kit & legacy attachments** — bot/app messages (`blocks`/`attachments`)
-  render as headers, sections + field grids, context, dividers, and muted control
-  labels. Uploaded image files and image blocks/attachments render **inline** —
-  kitty graphics on kitty, `▀` half-blocks on any truecolor terminal (labelled
-  `🖼` fallback otherwise). Slack `url_private` files are fetched authenticated.
-- **Embedded MCP server** (opt-in, `[mcp] enabled = true`) — an AI client can read
-  your current context (`slak_get_context`) and draft a reply into the composer
-  (`slak_set_draft`, draft-only — you review and send). Adapter: `slak --mcp`
-  (needs `pip install 'slak[mcp]'`).
+- Slack-native sections (`users.channelSections.list`, linked-list order) with a
+  pinned `★ Starred` section, or config-glob sections (`[sections.<name>]`) as a
+  fallback — grouped, collapsible, live-updated on section/star events.
+- A `⚑ Threads` row opens the threads view (your subscribed threads, newest-reply
+  first). DM and group-DM names are resolved to member display names.
 
-Starred channels/DMs surface in a pinned `★ Starred` section (live on
-`star_added`/`star_removed`).
+**Rendering**
 
-Themes include `ansi-dark`/`ansi-light` that follow your terminal's own 16 colours.
-- **Typing indicators** — "Alice is typing…" between the messages and compose box,
-  for the active channel (5s expiry; `[general] typing_indicators = false` to disable).
+- Slack markdown, mentions, custom emoji (inline images on kitty), and Block Kit /
+  legacy attachments (headers, sections, fields, context, dividers, controls).
+- Inline images for files and attachments — kitty graphics on kitty, `▀` half-blocks
+  on any truecolor terminal.
+- ~70-slot color themes (12 built-in incl. terminal-following `ansi-dark`/`ansi-light`,
+  plus `~/.config/slak/themes/*.toml` and `[theme]` overrides), switched live with
+  `Ctrl+Y`; the sidebar is auto-kept contrasting (CIELAB).
 
-Not yet wired: sixel image protocol; ANSI SGR substitution for message text.
-See the spec set for the full roadmap.
+**Realtime & integration**
+
+- RTM with exponential-backoff reconnection and missed-history backfill.
+- Desktop notifications, presence/DND, terminal tab-title unread indicator.
+- Opt-in embedded **MCP server** (`[mcp] enabled = true`) — an AI client reads your
+  context (`slak_get_context`) and drafts a reply (`slak_set_draft`, draft-only).
+  Run the adapter with `slak --mcp` (`pip install 'slak[mcp]'`).
+
+Underneath: a pluggable `SlackClient` (browser-cookie auth, with an in-memory fake
+for offline/dev), a self-healing SQLite cache (WAL + FTS5), and round-trippable TOML
+config. ~340 tests.
+
+Not yet wired: the sixel image protocol (half-blocks cover non-kitty terminals).
 
 ## Use a real workspace
 
