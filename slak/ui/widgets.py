@@ -552,6 +552,22 @@ class LinkPicker(FuzzyPicker):
         super().__init__([SimpleNamespace(id=u, name=u) for u in urls])
 
 
+class ThemePicker(FuzzyPicker):
+    """Pick a colour theme (``Ctrl+Y``, spec 05 §2).
+
+    Built from theme names; dismisses with the chosen name or ``None``. The
+    placeholder distinguishes per-workspace from default-theme selection.
+    """
+
+    PREFIX = "themepick"
+    PLACEHOLDER = "Pick a theme…"
+
+    def __init__(self, names: list[str], placeholder: str | None = None):
+        super().__init__([SimpleNamespace(id=n, name=n) for n in names])
+        if placeholder:
+            self.PLACEHOLDER = placeholder
+
+
 class HelpModal(ModalScreen):
     """Keyboard-shortcut help (``F1``, overview §10/§11).
 

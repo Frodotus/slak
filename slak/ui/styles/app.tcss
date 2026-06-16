@@ -1,17 +1,11 @@
 /* ---------------------------------------------------------------------------
- * pyslk base chrome — modern & BORDERLESS.
+ * slak base chrome — modern & BORDERLESS.
  * Separation comes from background surfaces + padding, never box borders.
- * Colour tokens here are the "dark" theme defaults; the colour-theme layer
- * (later) swaps just these $vars. Structure below references the vars.
+ * The colour tokens ($bg, $surface, $accent, …) are supplied at runtime by the
+ * colour-theme layer (slak/themes.py via PyslkApp.get_css_variables); switching
+ * a theme swaps just those vars and restyles everything. Structure below only
+ * references the vars — never hardcodes colours.
  * ------------------------------------------------------------------------- */
-
-$bg: #1a1b26;
-$surface: #1f2233;
-$surface-dark: #16161e;
-$text: #c0caf5;
-$text-muted: #565f89;
-$accent: #7aa2f7;
-$hairline: #2a2e42;
 
 Screen {
     background: $bg;
@@ -129,6 +123,19 @@ LinkPicker { align: center middle; background: $surface-dark 40%; }
 }
 #linkpick-input { border: none; background: $surface-dark; margin: 0 0 1 0; }
 #linkpick-results { height: auto; max-height: 10; background: $surface; }
+ThemePicker { align: center middle; background: $surface-dark 40%; }
+#themepick {
+    width: 50%;
+    min-width: 30;
+    max-width: 80;
+    height: auto;
+    max-height: 70%;
+    background: $surface;
+    border: round $hairline;
+    padding: 1 1;
+}
+#themepick-input { border: none; background: $surface-dark; margin: 0 0 1 0; }
+#themepick-results { height: auto; max-height: 10; background: $surface; }
 HelpModal { align: center middle; background: $surface-dark 40%; }
 #help {
     width: 60%;

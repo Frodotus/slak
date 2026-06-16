@@ -119,6 +119,18 @@ class Config:
             return ws.theme
         return self.theme or DEFAULT_THEME
 
+    def set_workspace_theme(self, team_id: str, theme: str, slug: str | None = None) -> None:
+        """Set the per-workspace theme, creating a workspace entry if needed."""
+        ws = self._by_team_id(team_id)
+        if ws is None:
+            ws = WorkspaceConfig(slug=slug or team_id, team_id=team_id)
+            self.workspaces.append(ws)
+        ws.theme = theme
+
+    def set_default_theme(self, theme: str) -> None:
+        """Set the global default theme for workspaces without their own."""
+        self.theme = theme
+
     def slug_for(self, team_id: str) -> str | None:
         ws = self._by_team_id(team_id)
         return ws.slug if ws is not None else None

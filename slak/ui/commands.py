@@ -38,6 +38,8 @@ class PyslkCommands(Provider):
             ("Switch workspace…", "switch_workspace_overlay", "Filterable workspace switcher"),
             ("Help: keyboard shortcuts", "help", "Show the keybinding reference"),
             ("Toggle sidebar", "toggle_sidebar", "Show or hide the channel sidebar"),
+            ("Theme: this workspace", "pick_theme", "Pick a colour theme for the active workspace"),
+            ("Theme: default", "pick_default_theme", "Pick the default theme for new workspaces"),
             ("Back: previous channel", "history_back", "Go back in channel history"),
             ("Forward: next channel", "history_forward", "Go forward in channel history"),
             ("Presence: Active", "presence_active", "Set yourself active"),

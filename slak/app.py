@@ -83,9 +83,11 @@ from slak.ui.widgets import (
     SearchBar,
     SearchResultsModal,
     Sidebar,
+    ThemePicker,
     ThreadPanel,
     WorkspaceSwitcher,
 )
+from slak import themes
 from slak.workspace import WorkspaceRouter
 
 
@@ -107,6 +109,8 @@ class PyslkApp(App):
         Binding("alt+right", "history_forward", show=False),
         Binding("f1", "help", show=False, priority=True),
         Binding("ctrl+r", "react", show=False),
+        Binding("ctrl+y", "pick_theme", show=False),
+        Binding("ctrl+shift+y", "pick_default_theme", show=False),
         Binding("ctrl+e", "edit_message", show=False, priority=True),
         Binding("ctrl+o", "open_links", show=False),
         Binding("ctrl+f", "search", show=False),
@@ -121,6 +125,9 @@ class PyslkApp(App):
         notifier: Notifier | None = None,
         url_opener: Callable[[str], object] | None = None,
     ):
+        # Set before super().__init__(): Textual reads get_css_variables() during
+        # App init, which needs the active theme name.
+        self._theme_name = config.theme  # active colour theme (spec 05 §2)
         super().__init__()
         self.router = router
         self.cache = cache
@@ -147,6 +154,17 @@ class PyslkApp(App):
     @property
     def client(self) -> SlackClient | None:
         return self.router.active()
+
+    def get_css_variables(self) -> dict[str, str]:
+        # Feed the active colour theme's slots in as CSS variables so app.tcss
+        # can reference $bg/$surface/$accent/… (spec 05 §2).
+        variables = super().get_css_variables()
+        variables.update(themes.theme_variables(self._theme_name))
+        return variables
+
+    def _apply_theme(self, name: str) -> None:
+        self._theme_name = name
+        self.refresh_css(animate=False)
 
     def compose(self) -> ComposeResult:
         yield Rail(id="rail")
@@ -281,10 +299,40 @@ class PyslkApp(App):
             self._refresh_rail()
             await self._load_active_workspace()
 
+    def action_pick_theme(self) -> None:
+        self.run_worker(self._pick_theme_flow(default=False), exclusive=False)
+
+    def action_pick_default_theme(self) -> None:
+        self.run_worker(self._pick_theme_flow(default=True), exclusive=False)
+
+    async def _pick_theme_flow(self, default: bool) -> None:
+        team = self.router.active_team_id()
+        if team is None:
+            return
+        client = self.router.client(team)
+        label = (
+            "Default theme for new workspaces"
+            if default
+            else f"Theme for {client.team_name if client else team}"
+        )
+        name = await self.push_screen_wait(
+            ThemePicker(themes.theme_names(), placeholder=label)
+        )
+        if not name:
+            return
+        if default:
+            self.config.set_default_theme(name)
+            if self.config.resolve_theme(team) == name:
+                self._apply_theme(name)
+        else:
+            self.config.set_workspace_theme(team, name, self.config.slug_for(team))
+            self._apply_theme(name)
+
     async def _load_active_workspace(self) -> None:
         client = self.client
         if client is None:
             return
+        self._apply_theme(self.config.resolve_theme(client.team_id))
         await self._load_users(client)
         await self._load_custom_emoji(client)
         channels = await client.list_channels()

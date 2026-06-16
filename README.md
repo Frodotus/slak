@@ -34,9 +34,11 @@ Early MVP scaffold. Working today:
 
 - `Ctrl+O` opens link(s) in the selected message (picker when there's more than one).
 - `Ctrl+E` edits your selected message; "Delete message" (palette) removes it.
+- `Ctrl+Y` picks a colour theme for the active workspace (`Ctrl+Shift+Y` sets the
+  default); ~10 built-in themes so far, applied live with no restart.
 
-Not yet wired: `Ctrl+N` new-message composer, theme switching, MCP server.
-See the spec set for the full roadmap.
+Not yet wired: `Ctrl+N` new-message composer, on-disk theme persistence, the full
+~70-theme set, MCP server. See the spec set for the full roadmap.
 
 ## Use a real workspace
 
