@@ -181,6 +181,8 @@ class SlackClient(Protocol):
 
     async def delete_message(self, channel_id: str, ts: str) -> None: ...
 
+    async def open_conversation(self, user_ids: list[str]) -> RemoteChannel: ...
+
     async def search(self, query: str) -> list[SearchResult]: ...
 
     async def list_custom_emoji(self) -> dict[str, str]: ...
@@ -295,6 +297,18 @@ class FakeSlackClient:
         msgs = self._history.get(channel_id, [])
         self._history[channel_id] = [m for m in msgs if m.ts != ts]
         await self._events.put(MessageDeleted(channel_id, ts))
+
+    async def open_conversation(self, user_ids: list[str]) -> RemoteChannel:
+        cid = "D" + "-".join(user_ids)
+        name = ", ".join(
+            self._users[u].name if u in self._users else u for u in user_ids
+        )
+        ctype = "dm" if len(user_ids) == 1 else "group_dm"
+        ch = RemoteChannel(cid, name, ctype)
+        if ch.id not in {c.id for c in self._channels}:
+            self._channels.append(ch)
+        self._history.setdefault(cid, [])
+        return ch
 
     async def list_users(self) -> list[RemoteUser]:
         return list(self._users.values())

@@ -260,6 +260,12 @@ class HttpSlackClient:
     async def delete_message(self, channel_id: str, ts: str) -> None:
         await self._call("chat.delete", channel=channel_id, ts=ts)
 
+    async def open_conversation(self, user_ids: list[str]) -> RemoteChannel:
+        data = await self._call("conversations.open", users=",".join(user_ids))
+        ch = data.get("channel", {})
+        ctype = "dm" if len(user_ids) == 1 else "group_dm"
+        return RemoteChannel(ch.get("id", ""), ch.get("name", ""), ctype)
+
     async def search(self, query: str) -> list[SearchResult]:
         data = await self._call("search.messages", query=query, count=50)
         matches = data.get("messages", {}).get("matches", [])

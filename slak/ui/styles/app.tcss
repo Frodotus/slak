@@ -136,6 +136,19 @@ ThemePicker { align: center middle; background: $surface-dark 40%; }
 }
 #themepick-input { border: none; background: $surface-dark; margin: 0 0 1 0; }
 #themepick-results { height: auto; max-height: 10; background: $surface; }
+MultiUserPicker { align: center middle; background: $surface-dark 40%; }
+#newmsg {
+    width: 50%;
+    min-width: 30;
+    max-width: 80;
+    height: auto;
+    max-height: 70%;
+    background: $surface;
+    border: round $hairline;
+    padding: 1 1;
+}
+#newmsg-input { border: none; background: $surface-dark; margin: 0 0 1 0; }
+#newmsg-results { height: auto; max-height: 12; background: $surface; }
 HelpModal { align: center middle; background: $surface-dark 40%; }
 #help {
     width: 60%;

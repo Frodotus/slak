@@ -31,6 +31,7 @@ KEYBINDINGS: list[tuple[str, list[tuple[str, str]]]] = [
         [
             ("Ctrl+P", "Command palette (all actions)"),
             ("Ctrl+K", "Jump to channel / DM"),
+            ("Ctrl+N", "New message (DM / group DM)"),
             ("Alt+1…9", "Switch workspace"),
             ("Ctrl+W", "Workspace switcher (filterable)"),
             ("Alt+← / Alt+→", "Channel history back / forward"),

@@ -76,6 +76,7 @@ from slak.ui.widgets import (
     EditModal,
     HelpModal,
     LinkPicker,
+    MultiUserPicker,
     MentionPopup,
     MessagePane,
     Rail,
@@ -111,6 +112,7 @@ class PyslkApp(App):
         Binding("ctrl+r", "react", show=False),
         Binding("ctrl+y", "pick_theme", show=False),
         Binding("ctrl+shift+y", "pick_default_theme", show=False),
+        Binding("ctrl+n", "new_message", show=False),
         Binding("ctrl+e", "edit_message", show=False, priority=True),
         Binding("ctrl+o", "open_links", show=False),
         Binding("ctrl+f", "search", show=False),
@@ -327,6 +329,31 @@ class PyslkApp(App):
         else:
             self.config.set_workspace_theme(team, name, self.config.slug_for(team))
             self._apply_theme(name)
+
+    def action_new_message(self) -> None:
+        self.run_worker(self._new_message_flow(), exclusive=False)
+
+    async def _new_message_flow(self) -> None:
+        client = self.client
+        if client is None:
+            return
+        users = [
+            u
+            for u in await client.list_users()
+            if u.id != client.self_user_id and not u.deleted
+        ]
+        selected = await self.push_screen_wait(MultiUserPicker(users))
+        if not selected:
+            return
+        channel = await client.open_conversation(selected)
+        if not channel.name:
+            names = self._names.get(client.team_id, {})
+            channel.name = ", ".join(names.get(u, u) for u in selected)
+        self._upsert_channels(client.team_id, [channel])
+        self._channel_names[channel.id] = channel.name
+        # reflect the new conversation in the sidebar, then open it
+        self.query_one("#sidebar", Sidebar).add_channel(channel)
+        await self.open_channel(channel.id)
 
     async def _load_active_workspace(self) -> None:
         client = self.client

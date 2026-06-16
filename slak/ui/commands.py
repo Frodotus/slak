@@ -35,6 +35,7 @@ class PyslkCommands(Provider):
 
         commands: list[tuple[str, str, str]] = [
             ("Jump to channel", "find_channel", "Fuzzy-find a channel or DM"),
+            ("New message", "new_message", "Start a DM or group DM"),
             ("Switch workspace…", "switch_workspace_overlay", "Filterable workspace switcher"),
             ("Help: keyboard shortcuts", "help", "Show the keybinding reference"),
             ("Toggle sidebar", "toggle_sidebar", "Show or hide the channel sidebar"),

@@ -101,6 +101,13 @@ class Sidebar(ListView):
         for ch in channels:
             self.append(ListItem(Static(self._label(ch)), id=ch.id))
 
+    def add_channel(self, ch: RemoteChannel) -> None:
+        """Append one channel (e.g. a freshly-opened DM) if not already listed."""
+        if any(c.id == ch.id for c in self._channels):
+            return
+        self._channels.append(ch)
+        self.append(ListItem(Static(self._label(ch)), id=ch.id))
+
     def set_unread(self, unread_ids: set[str]) -> None:
         self._unread = set(unread_ids)
         # update mounted labels; freshly-appended items repaint via _label on mount
@@ -550,6 +557,101 @@ class LinkPicker(FuzzyPicker):
 
     def __init__(self, urls: list[str]):
         super().__init__([SimpleNamespace(id=u, name=u) for u in urls])
+
+
+class MultiUserPicker(ModalScreen):
+    """New-message composer: filter users, multi-select, start a DM/MPIM
+    (``Ctrl+N``, spec 04). Type to filter; ``Tab`` (or click) toggles the
+    highlighted user; ``Enter`` starts the conversation; ``Esc`` cancels.
+
+    With nothing toggled, ``Enter`` starts a DM with the highlighted user (the
+    common case). Dismisses with the chosen user-id list, or ``None``.
+    """
+
+    BINDINGS = [
+        Binding("escape", "cancel", show=False),
+        Binding("down", "cursor_down", show=False),
+        Binding("up", "cursor_up", show=False),
+        Binding("tab", "toggle", show=False, priority=True),
+    ]
+
+    def __init__(self, users):
+        super().__init__()
+        self._all = list(users)
+        self._shown = list(users)
+        self._selected: list[str] = []  # ordered by toggle, for stable MPIM ids
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="newmsg"):
+            yield Input(placeholder="To: name… (Tab adds, Enter starts)", id="newmsg-input")
+            yield OptionList(id="newmsg-results")
+
+    def on_mount(self) -> None:
+        self._populate("")
+        self.query_one("#newmsg-input", Input).focus()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        self._populate(event.value)
+
+    def _results(self) -> OptionList:
+        return self.query_one("#newmsg-results", OptionList)
+
+    def _label(self, user) -> str:
+        mark = "✓" if user.id in self._selected else " "
+        return f"[{mark}] {user.name}"
+
+    def _populate(self, query: str, keep: int | None = None) -> None:
+        self._shown = rank_by_name(self._all, query)
+        opts = self._results()
+        opts.clear_options()
+        for user in self._shown:
+            opts.add_option(self._label(user))
+        if self._shown:
+            opts.highlighted = keep if keep is not None else 0
+
+    def action_cursor_down(self) -> None:
+        self._move(1)
+
+    def action_cursor_up(self) -> None:
+        self._move(-1)
+
+    def _move(self, delta: int) -> None:
+        opts = self._results()
+        if opts.option_count:
+            cur = opts.highlighted or 0
+            opts.highlighted = max(0, min(opts.option_count - 1, cur + delta))
+
+    def action_toggle(self) -> None:
+        opts = self._results()
+        idx = opts.highlighted
+        if idx is None or not (0 <= idx < len(self._shown)):
+            return
+        user = self._shown[idx]
+        if user.id in self._selected:
+            self._selected.remove(user.id)
+        else:
+            self._selected.append(user.id)
+        self._populate(self.query_one("#newmsg-input", Input).value, keep=idx)
+
+    def on_option_list_option_selected(self, event) -> None:
+        # Mouse click toggles, mirroring Tab.
+        if 0 <= event.option_index < len(self._shown):
+            self._results().highlighted = event.option_index
+            self.action_toggle()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if self._selected:
+            self.dismiss(list(self._selected))
+            return
+        opts = self._results()
+        idx = opts.highlighted
+        if idx is not None and 0 <= idx < len(self._shown):
+            self.dismiss([self._shown[idx].id])
+        else:
+            self.dismiss([])
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
 
 
 class ThemePicker(FuzzyPicker):
