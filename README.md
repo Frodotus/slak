@@ -52,14 +52,15 @@ Early MVP scaffold. Working today:
   (4-wide pool, deduped per workspace) and refreshes threads/the open channel.
 - **Block Kit & legacy attachments** — bot/app messages (`blocks`/`attachments`)
   render as headers, sections + field grids, context, dividers, and muted control
-  labels, instead of being dropped.
+  labels. Image blocks/attachments render as **inline kitty images** (labelled
+  `🖼` fallback off kitty or before they load).
 - **Embedded MCP server** (opt-in, `[mcp] enabled = true`) — an AI client can read
   your current context (`slak_get_context`) and draft a reply into the composer
   (`slak_set_draft`, draft-only — you review and send). Adapter: `slak --mcp`
   (needs `pip install 'slak[mcp]'`).
 
-Not yet wired: live section WS updates, ANSI-palette themes, inline block images.
-See the spec set for the full roadmap.
+Not yet wired: live section WS updates, ANSI-palette themes, sixel/halfblock image
+fallbacks (kitty only for now). See the spec set for the full roadmap.
 
 ## Use a real workspace
 

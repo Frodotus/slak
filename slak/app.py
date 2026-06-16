@@ -41,7 +41,8 @@ from textual.widgets import Input, ListView, Static
 from slak.cache import Cache, Channel, ThreadSubscription
 from slak.debuglog import debug
 from slak.emoji import resolve_custom_emoji
-from slak.images import EmojiImages, detect_protocol, tmux_passthrough
+from slak.blockkit import image_urls
+from slak.images import EmojiImages, MediaImages, detect_protocol, tmux_passthrough
 from slak.links import extract_links
 from slak.nav import NavHistory
 from slak.text import fold
@@ -150,6 +151,7 @@ class PyslkApp(App):
         self._names: dict[str, dict[str, str]] = {}  # team_id -> {user_id: display}
         self._custom_emoji: dict[str, dict[str, str]] = {}  # team_id -> {name: url}
         self._emoji_images: EmojiImages | None = None
+        self._media_images: MediaImages | None = None
         self._resolving: set[tuple[str, str]] = set()
         self.open_thread_ts: str = ""
         self.open_thread_channel: str = ""
@@ -212,7 +214,9 @@ class PyslkApp(App):
         self._init_emoji_images()
         for pane_id in ("#messages", "#thread-messages"):
             try:
-                self.query_one(pane_id, MessagePane).set_custom_render(self._custom_render)
+                pane = self.query_one(pane_id, MessagePane)
+                pane.set_custom_render(self._custom_render)
+                pane.set_image_render(self._image_render)
             except Exception:
                 pass
         self.query_one("#threads", ThreadList).set_custom_render(self._custom_render)
@@ -547,6 +551,7 @@ class PyslkApp(App):
         # …then reconcile against Slack in the background.
         self.run_worker(self._sync_channel(client, channel_id), exclusive=False)
         self.run_worker(self._prefetch_emoji(), exclusive=False)
+        self.run_worker(self._prefetch_images(), exclusive=False)
 
     async def _sync_channel(self, client: SlackClient, channel_id: str) -> None:
         try:
@@ -560,6 +565,7 @@ class PyslkApp(App):
                 _top_level(fetched), self._name_of
             )
             self.run_worker(self._prefetch_emoji(), exclusive=False)
+            self.run_worker(self._prefetch_images(), exclusive=False)
 
     async def _load_users(self, client: SlackClient) -> None:
         try:
@@ -579,6 +585,7 @@ class PyslkApp(App):
         if client is self.client:
             self._refresh_messages()
             self.run_worker(self._prefetch_emoji(), exclusive=False)
+            self.run_worker(self._prefetch_images(), exclusive=False)
 
     # --- custom emoji images (kitty, best-effort) ------------------------
 
@@ -592,6 +599,13 @@ class PyslkApp(App):
         cache_dir = Path.home() / ".cache" / "slak" / "emoji"
         self._emoji_images = EmojiImages(
             proto, self._fetch_image, cache_dir, self._emit_raw
+        )
+        media_proto = self.config.image_protocol
+        if media_proto == "auto":
+            media_proto = detect_protocol(dict(os.environ))
+        self._media_images = MediaImages(
+            media_proto, self._fetch_image,
+            Path.home() / ".cache" / "slak" / "media", self._emit_raw,
         )
         debug(f"init emoji images: protocol={proto} enabled={self._emoji_images.enabled}")
 
@@ -638,6 +652,30 @@ class PyslkApp(App):
             return markup  # kitty image placeholder
         debug(f"render {name}: chip (image not ready)")
         return f"[reverse]:{name}:[/reverse]"  # chip until the image is ready
+
+    def _image_render(self, url: str) -> str | None:
+        mi = self._media_images
+        if mi is None or not mi.enabled:
+            return None
+        return mi.markup(url)
+
+    async def _prefetch_images(self) -> None:
+        mi = self._media_images
+        if mi is None or not mi.enabled:
+            return
+        urls: list[str] = []
+        seen: set[str] = set()
+        for m in self.query_one("#messages", MessagePane)._messages:
+            for url in image_urls(getattr(m, "raw_json", "") or ""):
+                if url not in seen:
+                    seen.add(url)
+                    urls.append(url)
+        changed = False
+        for url in urls:
+            if await mi.ensure(url):
+                changed = True
+        if changed:
+            self._refresh_messages()
 
     async def _prefetch_emoji(self) -> None:
         ei = self._emoji_images

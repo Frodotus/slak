@@ -34,15 +34,24 @@ from slak.render import render_message
 
 NameOf = Callable[[str], str]
 CustomRender = Callable[[str], "str | None"] | None
+ImageRender = Callable[[str], "str | None"] | None  # url -> placeholder markup
 
 _RULE = "─" * 40
 _ATTACH_COLORS = {"good": "green", "warning": "yellow", "danger": "red"}
 
 
 def render_extras(
-    raw_json: str, name_of: NameOf, custom_render: CustomRender = None
+    raw_json: str,
+    name_of: NameOf,
+    custom_render: CustomRender = None,
+    image_render: ImageRender = None,
 ) -> list[str]:
-    """Rendered lines for a message's ``blocks`` + legacy ``attachments`` (or [])."""
+    """Rendered lines for a message's ``blocks`` + legacy ``attachments`` (or []).
+
+    ``image_render(url)`` may return a terminal-image placeholder for an image
+    that's been transmitted; when it returns ``None`` the image falls back to a
+    labelled ``🖼`` placeholder.
+    """
     try:
         data = json.loads(raw_json) if raw_json else {}
     except (ValueError, TypeError):
@@ -54,17 +63,58 @@ def render_extras(
     interactive = False
     blocks = data.get("blocks") or []
     if isinstance(blocks, list):
-        block_lines, block_interactive = _render_blocks(blocks, name_of, custom_render)
+        block_lines, block_interactive = _render_blocks(
+            blocks, name_of, custom_render, image_render
+        )
         lines += block_lines
         interactive = interactive or block_interactive
 
     attachments = data.get("attachments") or []
     if isinstance(attachments, list):
-        lines += _render_attachments(attachments, name_of, custom_render)
+        lines += _render_attachments(attachments, name_of, custom_render, image_render)
 
     if interactive:
         lines.append("[dim]↗ open in Slack to interact[/dim]")
     return lines
+
+
+def image_urls(raw_json: str) -> list[str]:
+    """All image URLs referenced by a message's blocks/attachments (in order)."""
+    try:
+        data = json.loads(raw_json) if raw_json else {}
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    urls: list[str] = []
+    for b in data.get("blocks") or []:
+        if not isinstance(b, dict):
+            continue
+        if b.get("type") == "image" and b.get("image_url"):
+            urls.append(b["image_url"])
+        acc = b.get("accessory")
+        if isinstance(acc, dict) and acc.get("type") == "image" and acc.get("image_url"):
+            urls.append(acc["image_url"])
+        for e in b.get("elements", []) if b.get("type") == "context" else []:
+            if isinstance(e, dict) and e.get("type") == "image" and e.get("image_url"):
+                urls.append(e["image_url"])
+    for a in data.get("attachments") or []:
+        if not isinstance(a, dict):
+            continue
+        for key in ("image_url", "thumb_url"):
+            if a.get(key):
+                urls.append(a[key])
+    seen: set[str] = set()
+    return [u for u in urls if not (u in seen or seen.add(u))]
+
+
+def _img(url: str, label: str, image_render: ImageRender) -> str:
+    """A rendered inline image placeholder if ready, else a labelled fallback."""
+    if image_render and url:
+        markup = image_render(url)
+        if markup:
+            return markup
+    return f"🖼 {escape(label)}"
 
 
 def _text(field: dict, name_of: NameOf, custom_render: CustomRender) -> str:
@@ -94,7 +144,8 @@ def _accessory(acc: dict) -> str:
 
 
 def _render_blocks(
-    blocks: list, name_of: NameOf, custom_render: CustomRender
+    blocks: list, name_of: NameOf, custom_render: CustomRender,
+    image_render: ImageRender = None,
 ) -> tuple[list[str], bool]:
     lines: list[str] = []
     interactive = False
@@ -116,15 +167,24 @@ def _render_blocks(
             for i in range(0, len(fields), 2):
                 cells = [_text(f, name_of, custom_render) for f in fields[i : i + 2]]
                 lines.append("    ".join(cells))
-            if "accessory" in b:
-                lines.append(f"[dim]{_accessory(b['accessory'])}[/dim]")
-                if b["accessory"].get("type") != "image":
+            acc = b.get("accessory")
+            if acc:
+                if acc.get("type") == "image":
+                    lines.append(
+                        _img(acc.get("image_url", ""), acc.get("alt_text", "image"),
+                             image_render)
+                    )
+                else:
+                    lines.append(f"[dim][{escape(_control_label(acc))}][/dim]")
                     interactive = True
         elif typ == "context":
             parts = []
             for e in b.get("elements", []):
                 if e.get("type") == "image":
-                    parts.append(f"🖼 {escape(e.get('alt_text', 'image'))}")
+                    parts.append(
+                        _img(e.get("image_url", ""), e.get("alt_text", "image"),
+                             image_render)
+                    )
                 else:
                     parts.append(_text(e, name_of, custom_render))
             lines.append(f"[dim]{'  '.join(parts)}[/dim]")
@@ -132,7 +192,7 @@ def _render_blocks(
             lines.append(f"[dim]{_RULE}[/dim]")
         elif typ == "image":
             label = b.get("title", {}).get("text") or b.get("alt_text", "image")
-            lines.append(f"[dim]🖼 {escape(label)}[/dim]")
+            lines.append(_img(b.get("image_url", ""), label, image_render))
         elif typ == "actions":
             labels = [_control_label(e) for e in b.get("elements", [])]
             lines.append("  ".join(f"[dim]\\[{escape(x)}][/dim]" for x in labels))
@@ -143,7 +203,8 @@ def _render_blocks(
 
 
 def _render_attachments(
-    attachments: list, name_of: NameOf, custom_render: CustomRender
+    attachments: list, name_of: NameOf, custom_render: CustomRender,
+    image_render: ImageRender = None,
 ) -> list[str]:
     lines: list[str] = []
     for a in attachments:
@@ -165,6 +226,9 @@ def _render_attachments(
                 for f in fields[i : i + 2]
             ]
             lines.append(f"{bar} " + "    ".join(cells))
+        for key in ("image_url", "thumb_url"):
+            if a.get(key):
+                lines.append(f"{bar} " + _img(a[key], a.get("title", "image"), image_render))
         if a.get("footer"):
             lines.append(f"[dim]{escape(a['footer'])}[/dim]")
     return lines

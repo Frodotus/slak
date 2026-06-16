@@ -189,9 +189,13 @@ class MessagePane(VerticalScroll, can_focus=True):
         self._selected: int = -1
         self._name_of = str
         self._custom_render = None
+        self._image_render = None
 
     def set_custom_render(self, fn) -> None:
         self._custom_render = fn
+
+    def set_image_render(self, fn) -> None:
+        self._image_render = fn
 
     def set_messages(self, messages: list[RemoteMessage], name_of=str) -> None:
         self.remove_children()
@@ -301,7 +305,8 @@ class MessagePane(VerticalScroll, can_focus=True):
         text = render_message(m.text, self._name_of, self._custom_render)
         body = f"[b]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{text}"
         extras = (
-            render_extras(m.raw_json, self._name_of, self._custom_render)
+            render_extras(m.raw_json, self._name_of, self._custom_render,
+                          self._image_render)
             if getattr(m, "raw_json", "")
             else []
         )

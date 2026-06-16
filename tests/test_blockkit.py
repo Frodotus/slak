@@ -16,7 +16,7 @@
 
 import json
 
-from slak.blockkit import render_extras
+from slak.blockkit import image_urls, render_extras
 
 
 def joined(raw: dict) -> str:
@@ -112,6 +112,45 @@ def test_message_pane_body_includes_blocks():
     body = pane._body(msg)
     assert "hi there" in body  # original text kept
     assert "Deploy" in body  # block rendered too
+
+
+def test_image_urls_collects_from_blocks_and_attachments():
+    raw = json.dumps({
+        "blocks": [
+            {"type": "image", "image_url": "http://x/a.png", "alt_text": "a"},
+            {"type": "section", "text": {"type": "mrkdwn", "text": "hi"},
+             "accessory": {"type": "image", "image_url": "http://x/b.png"}},
+            {"type": "context", "elements": [
+                {"type": "image", "image_url": "http://x/c.png"},
+                {"type": "mrkdwn", "text": "ignored"},
+            ]},
+        ],
+        "attachments": [
+            {"image_url": "http://x/d.png", "thumb_url": "http://x/e.png"},
+        ],
+    })
+    assert image_urls(raw) == [
+        "http://x/a.png", "http://x/b.png", "http://x/c.png",
+        "http://x/d.png", "http://x/e.png",
+    ]
+
+
+def test_image_urls_empty_and_invalid():
+    assert image_urls("") == []
+    assert image_urls("nope") == []
+    assert image_urls(json.dumps({"text": "hi"})) == []
+
+
+def test_image_block_uses_render_callback_when_available():
+    raw = json.dumps({"blocks": [
+        {"type": "image", "image_url": "http://x/a.png", "alt_text": "chart"},
+    ]})
+    # callback returns a placeholder for the ready image
+    lines = render_extras(raw, name_of=str, image_render=lambda u: "[IMG:a]")
+    assert any("[IMG:a]" in ln for ln in lines)
+    # without a ready image, falls back to the labelled placeholder
+    lines = render_extras(raw, name_of=str, image_render=lambda u: None)
+    assert any("chart" in ln for ln in lines)
 
 
 def test_legacy_attachment_renders_fields_and_color():

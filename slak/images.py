@@ -184,6 +184,83 @@ def emoji_png(data: bytes, size: int = 48) -> bytes:
     return out.getvalue()
 
 
+def media_png(data: bytes, max_cols: int = 24, max_rows: int = 10,
+              cell_aspect: float = 2.1) -> tuple[bytes, int, int]:
+    """Normalise an attachment/block image to a PNG plus its cell footprint.
+
+    Returns ``(png, cols, rows)`` where cols×rows preserves the image's aspect
+    (terminal cells are ~``cell_aspect``× taller than wide), capped to the max
+    box; the PNG is downscaled to keep the transmit payload small.
+    """
+    import io
+
+    from PIL import Image
+
+    img = Image.open(io.BytesIO(data))
+    try:
+        img.seek(0)
+    except (EOFError, ValueError):
+        pass
+    img = img.convert("RGBA")
+    w, h = img.size
+    cols = max_cols
+    rows = max(1, round(cols * (h / w) / cell_aspect))
+    if rows > max_rows:
+        rows = max_rows
+        cols = max(1, round(rows * (w / h) * cell_aspect))
+    img.thumbnail((cols * 14, rows * 30))
+    out = io.BytesIO()
+    img.save(out, format="PNG")
+    return out.getvalue(), cols, rows
+
+
+class MediaImages:
+    """Kitty transmission for arbitrary attachment/block images (kitty-only).
+
+    Like :class:`EmojiImages` but sizes images to a multi-cell footprint and uses
+    a high image-id base so its ids never collide with emoji in the kitty image
+    namespace. Disabled (no-op) off kitty.
+    """
+
+    def __init__(self, protocol: str, fetch, cache_dir, emit,
+                 id_base: int = 100_000, max_cols: int = 24, max_rows: int = 10):
+        self.enabled = protocol == "kitty"
+        self._cache = ImageCache(fetch, cache_dir)
+        self._emit = emit
+        self._dims: dict[str, tuple[int, int, int]] = {}  # url -> (id, cols, rows)
+        self._ready: set[str] = set()
+        self._next = id_base
+        self._max_cols = max_cols
+        self._max_rows = max_rows
+
+    async def ensure(self, url: str) -> int | None:
+        if not self.enabled or not url:
+            return None
+        if url in self._ready:
+            return self._dims[url][0]
+        try:
+            raw = await self._cache.get(url)
+            png, cols, rows = media_png(raw, self._max_cols, self._max_rows)
+        except Exception:
+            return None
+        img_id = self._dims[url][0] if url in self._dims else self._next
+        if url not in self._dims:
+            self._next += 1
+        self._dims[url] = (img_id, cols, rows)
+        try:
+            self._emit(kitty_transmit(img_id, png))
+        except Exception:
+            return None
+        self._ready.add(url)
+        return img_id
+
+    def markup(self, url: str) -> str | None:
+        if url in self._ready:
+            img_id, cols, rows = self._dims[url]
+            return kitty_placeholder_markup(img_id, cols, rows)
+        return None
+
+
 class EmojiImages:
     """Manages kitty image transmission for custom emoji (best-effort, kitty-only).
 
