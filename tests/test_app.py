@@ -210,6 +210,15 @@ async def test_opening_channel_marks_it_read():
         assert app.cache.get_workspace_read_state("T1")["C1"].has_unread is False
 
 
+async def test_opening_channel_marks_read_on_the_server():
+    app = make_app()  # C1 opened on boot, latest message ts 100.0
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        # conversations.mark was sent so Slack stops reporting it unread next launch
+        assert ("C1", "100.0") in app.client.marks
+
+
 async def test_message_to_inactive_channel_marks_it_unread():
     app = make_app()  # C1 active, C2 inactive
     async with app.run_test() as pilot:
@@ -538,7 +547,7 @@ async def test_mark_unread_sets_dot_and_marks_remote():
             await pilot.pause()
         assert app.cache.get_workspace_read_state("T1")["C1"].has_unread is True
         assert "C1" in app.query_one("#sidebar", Sidebar).unread_ids()
-        assert app.client.marks == [("C1", "1.0")]  # boundary = ts before "two"
+        assert app.client.marks[-1] == ("C1", "1.0")  # boundary = ts before "two"
 
 
 async def test_tab_title_reflects_unread():

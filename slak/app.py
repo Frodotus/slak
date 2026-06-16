@@ -692,6 +692,12 @@ class PyslkApp(App):
             )
             self.run_worker(self._prefetch_emoji(), exclusive=False)
             self.run_worker(self._prefetch_images(), exclusive=False)
+            # tell Slack we've read it, so it doesn't re-report unread next launch
+            if fetched:
+                self.run_worker(
+                    self._mark_remote(client, channel_id, fetched[-1].ts),
+                    exclusive=False,
+                )
 
     async def _load_users(self, client: SlackClient) -> None:
         try:
