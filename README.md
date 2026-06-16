@@ -27,9 +27,11 @@ Early MVP scaffold. Working today:
   images on kitty), in-channel and workspace search, `@`/`:` autocomplete,
   desktop notifications, presence/DND.
 
+- `Ctrl+B` toggles the sidebar; `Ctrl+T` toggles the thread panel.
+
 Not yet wired: `Ctrl+W` workspace switcher overlay, `Ctrl+N` new-message composer,
-`Ctrl+B` sidebar toggle, edit/delete message, open-links, theme switching,
-channel-history nav, MCP server. See the spec set for the full roadmap.
+edit/delete message, open-links, theme switching, channel-history nav, MCP server.
+See the spec set for the full roadmap.
 
 ## Use a real workspace
 

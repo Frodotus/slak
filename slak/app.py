@@ -90,6 +90,7 @@ class PyslkApp(App):
         Binding("escape", "focus_compose", show=False),
         Binding("enter", "open_thread", show=False),
         Binding("ctrl+t", "toggle_thread", show=False),
+        Binding("ctrl+b", "toggle_sidebar", show=False),
         Binding("ctrl+k", "find_channel", show=False, priority=True),
         Binding("f1", "help", show=False, priority=True),
         Binding("ctrl+r", "react", show=False),
@@ -627,6 +628,10 @@ class PyslkApp(App):
     def action_help(self) -> None:
         if not isinstance(self.screen, HelpModal):
             self.push_screen(HelpModal())
+
+    def action_toggle_sidebar(self) -> None:
+        sidebar = self.query_one("#sidebar", Sidebar)
+        sidebar.display = not sidebar.display
 
     def action_find_channel(self) -> None:
         self.run_worker(self._find_channel_flow(), exclusive=False)

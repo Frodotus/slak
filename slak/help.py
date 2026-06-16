@@ -35,6 +35,7 @@ KEYBINDINGS: list[tuple[str, list[tuple[str, str]]]] = [
             ("Ctrl+F", "Find in channel"),
             ("Ctrl+Shift+F", "Find in workspace"),
             ("Ctrl+T", "Toggle thread panel"),
+            ("Ctrl+B", "Toggle sidebar"),
             ("Tab / Shift+Tab", "Cycle focus"),
             ("Esc", "Dismiss overlay / return to compose"),
             ("F1", "This help"),
