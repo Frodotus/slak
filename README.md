@@ -41,9 +41,11 @@ Early MVP scaffold. Working today:
 
 - Theme picks persist to `~/.config/slak/config.toml` (real workspaces; the demo
   never rewrites your config).
+- A `⚑ Threads` sidebar row opens the **threads view** — your subscribed threads,
+  newest-reply first; the side panel follows the cursor.
 
-Not yet wired: the full ~70-theme set, threads view / sections, Block Kit,
-MCP server. See the spec set for the full roadmap.
+Not yet wired: the full ~70-theme set, sidebar sections, Block Kit, MCP server.
+See the spec set for the full roadmap.
 
 ## Use a real workspace
 

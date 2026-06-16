@@ -38,7 +38,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Input, ListView, Static
 
-from slak.cache import Cache, Channel
+from slak.cache import Cache, Channel, ThreadSubscription
 from slak.debuglog import debug
 from slak.emoji import resolve_custom_emoji
 from slak.images import EmojiImages, detect_protocol, tmux_passthrough
@@ -85,9 +85,11 @@ from slak.ui.widgets import (
     SearchResultsModal,
     Sidebar,
     ThemePicker,
+    ThreadList,
     ThreadPanel,
     WorkspaceSwitcher,
 )
+from slak.ui.widgets import THREADS_ROW_ID
 from slak import themes
 from slak.workspace import WorkspaceRouter
 
@@ -148,6 +150,7 @@ class PyslkApp(App):
         self._resolving: set[tuple[str, str]] = set()
         self.open_thread_ts: str = ""
         self.open_thread_channel: str = ""
+        self._view: str = "channels"  # "channels" | "threads" (spec 03 §8)
         self._search_matches: list[str] = []
         self._search_idx: int = 0
         self._presence: dict[str, tuple[str, float]] = {}  # team -> (presence, dnd_end)
@@ -188,6 +191,7 @@ class PyslkApp(App):
                 yield Static("", id="header")
                 yield Static("─" * 200, id="header-rule")
                 yield MessagePane(id="messages")
+                yield ThreadList(id="threads")
                 yield SearchBar(placeholder="Search this channel…", id="search")
                 yield MentionPopup(id="completion-popup")
                 yield ComposeInput(placeholder="Message…", id="compose")
@@ -201,6 +205,8 @@ class PyslkApp(App):
                 self.query_one(pane_id, MessagePane).set_custom_render(self._custom_render)
             except Exception:
                 pass
+        self.query_one("#threads", ThreadList).set_custom_render(self._custom_render)
+        self.query_one("#threads", ThreadList).display = False
         self._refresh_rail()
         await self._load_active_workspace()
         self.query_one("#compose", Input).focus()
@@ -378,7 +384,8 @@ class PyslkApp(App):
         channels = await client.list_channels()
         self._channel_names = {ch.id: ch.name for ch in channels}
         self._upsert_channels(client.team_id, channels)
-        self.query_one("#sidebar", Sidebar).set_channels(channels)
+        await self.query_one("#sidebar", Sidebar).set_channels(channels)
+        await self._load_thread_subscriptions(client)
         self.active_channel = None
         if channels:
             await self.open_channel(channels[0].id)
@@ -411,10 +418,47 @@ class PyslkApp(App):
         if channel_id:
             await self.open_channel(channel_id, record_history=False)
 
+    async def _load_thread_subscriptions(self, client: SlackClient) -> None:
+        try:
+            subs = await client.list_thread_subscriptions()
+        except Exception as exc:
+            self.log(f"thread subscriptions fetch failed: {exc!r}")
+            return
+        self.cache.reconcile_thread_subscriptions(
+            client.team_id,
+            [
+                ThreadSubscription(client.team_id, s.channel_id, s.thread_ts, s.last_read)
+                for s in subs
+            ],
+        )
+
+    async def _enter_threads_view(self) -> None:
+        team = self.router.active_team_id()
+        if team is None:
+            return
+        self._view = "threads"
+        self.query_one("#header", Static).update("⚑ Threads")
+        self.query_one("#messages", MessagePane).display = False
+        self.query_one("#search", SearchBar).display = False
+        self.query_one("#compose", Input).display = False
+        threads = self.query_one("#threads", ThreadList)
+        threads.display = True
+        threads.set_threads(self.cache.threads_overview(team), self._name_of)
+        threads.focus()
+
+    def _exit_threads_view(self) -> None:
+        if self._view != "threads":
+            return
+        self._view = "channels"
+        self.query_one("#threads", ThreadList).display = False
+        self.query_one("#messages", MessagePane).display = True
+        self.query_one("#compose", Input).display = True
+
     async def open_channel(self, channel_id: str, record_history: bool = True) -> None:
         client = self.client
         if client is None:
             return
+        self._exit_threads_view()
         self.active_channel = channel_id
         if record_history and (team := self.router.active_team_id()) is not None:
             self._nav_for(team).visit(channel_id)
@@ -593,8 +637,17 @@ class PyslkApp(App):
     # --- input / events ---------------------------------------------------
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
-        if event.item is not None and event.item.id:
-            await self.open_channel(event.item.id)
+        if event.item is None or not event.item.id:
+            return
+        if event.item.id == THREADS_ROW_ID:
+            await self._enter_threads_view()
+        else:
+            await self.open_channel(event.item.id)  # exits threads view if active
+
+    async def on_thread_list_highlighted(self, event: ThreadList.Highlighted) -> None:
+        o = event.overview
+        if o is not None:
+            await self.open_thread(o.channel_id, o.thread_ts, focus=False)
 
     def _name_to_id(self) -> dict[str, str]:
         team = self.router.active_team_id() or ""
@@ -785,6 +838,10 @@ class PyslkApp(App):
     # --- actions (also exposed via the command palette) -------------------
 
     def action_focus_compose(self) -> None:
+        if self._view == "threads":
+            # Esc in the threads view returns focus to the sidebar (spec 03 §8)
+            self.query_one("#sidebar", Sidebar).focus()
+            return
         self.query_one("#search", SearchBar).display = False
         self.query_one("#messages", MessagePane).remove_class("-searching")
         self.query_one("#compose", Input).focus()
@@ -872,12 +929,18 @@ class PyslkApp(App):
         pane.select_first()
 
     async def action_open_thread(self) -> None:
+        if self._view == "threads":
+            # in the threads view Enter moves focus into the reply box
+            self.query_one("#thread-compose", Input).focus()
+            return
         msg = self.query_one("#messages", MessagePane).selected_message()
         if msg is None or self.active_channel is None:
             return
         await self.open_thread(self.active_channel, msg.thread_ts or msg.ts)
 
-    async def open_thread(self, channel_id: str, thread_ts: str) -> None:
+    async def open_thread(
+        self, channel_id: str, thread_ts: str, focus: bool = True
+    ) -> None:
         client = self.client
         if client is None:
             return
@@ -891,7 +954,8 @@ class PyslkApp(App):
         panel = self.query_one("#thread", ThreadPanel)
         panel.set_thread(replies, self._name_of)
         panel.display = True
-        self.query_one("#thread-compose", Input).focus()
+        if focus:
+            self.query_one("#thread-compose", Input).focus()
 
     def action_toggle_thread(self) -> None:
         panel = self.query_one("#thread", ThreadPanel)

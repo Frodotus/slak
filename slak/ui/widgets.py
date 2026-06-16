@@ -28,6 +28,7 @@ from types import SimpleNamespace
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical, VerticalScroll
+from textual.message import Message
 from textual.widgets import Input, ListItem, ListView, OptionList, Static
 
 from textual.screen import ModalScreen
@@ -87,17 +88,26 @@ def _channel_glyph(ch: RemoteChannel) -> str:
     return {"dm": "●", "group_dm": "●", "private": "◆"}.get(ch.type, "#")
 
 
+# Synthetic sidebar row that opens the threads view (spec 03 §8).
+THREADS_ROW_ID = "threads-landmark"
+
+
 class Sidebar(ListView):
-    """Channel list. Item ids are channel ids; unread channels are bold + dotted."""
+    """Channel list. Item ids are channel ids; unread channels are bold + dotted.
+
+    A synthetic ``⚑ Threads`` landmark row sits at the top (id
+    :data:`THREADS_ROW_ID`); selecting it opens the threads view.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._channels: list[RemoteChannel] = []
         self._unread: set[str] = set()
 
-    def set_channels(self, channels: list[RemoteChannel]) -> None:
+    async def set_channels(self, channels: list[RemoteChannel]) -> None:
         self._channels = channels
-        self.clear()
+        await self.clear()  # await: removal is deferred, must finish before re-adding
+        self.append(ListItem(Static("⚑ Threads"), id=THREADS_ROW_ID))
         for ch in channels:
             self.append(ListItem(Static(self._label(ch)), id=ch.id))
 
@@ -274,6 +284,81 @@ class MessagePane(VerticalScroll, can_focus=True):
             if markup:  # custom emoji: image placeholder or chip
                 return markup
         return emoji_glyph(name)  # standard glyph or :name: fallback
+
+
+class ThreadList(VerticalScroll, can_focus=True):
+    """Scrollable list of subscribed threads — the threads view (spec 03 §8).
+
+    The highlight follows the cursor and posts :class:`Highlighted` so the app
+    can show that thread's replies in the side panel.
+    """
+
+    class Highlighted(Message):
+        def __init__(self, overview) -> None:
+            self.overview = overview
+            super().__init__()
+
+    BINDINGS = [
+        Binding("up", "cursor_up", show=False),
+        Binding("down", "cursor_down", show=False),
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._rows: list = []
+        self._widgets: list[Static] = []
+        self._selected: int = -1
+        self._name_of = str
+        self._custom_render = None
+
+    def set_custom_render(self, fn) -> None:
+        self._custom_render = fn
+
+    def set_threads(self, overviews, name_of=str) -> None:
+        self.remove_children()
+        self._rows = list(overviews)
+        self._name_of = name_of
+        self._widgets = [Static(self._body(o), classes="thread-row") for o in self._rows]
+        for w in self._widgets:
+            self.mount(w)
+        self._selected = 0 if self._rows else -1
+        self._apply_selection()
+        if self._rows:
+            self.post_message(self.Highlighted(self._rows[0]))
+
+    def selected_overview(self):
+        if 0 <= self._selected < len(self._rows):
+            return self._rows[self._selected]
+        return None
+
+    def action_cursor_up(self) -> None:
+        self._move(-1)
+
+    def action_cursor_down(self) -> None:
+        self._move(1)
+
+    def _move(self, delta: int) -> None:
+        if not self._rows:
+            return
+        self._selected = max(0, min(len(self._rows) - 1, self._selected + delta))
+        self._apply_selection()
+        self.scroll_to_widget(self._widgets[self._selected], animate=False)
+        self.post_message(self.Highlighted(self._rows[self._selected]))
+
+    def _apply_selection(self) -> None:
+        for i, w in enumerate(self._widgets):
+            w.set_class(i == self._selected, "-selected")
+
+    def _body(self, o) -> str:
+        author = escape(self._name_of(o.parent_user_id)) if o.parent_user_id else "—"
+        dot = " [b]●[/]" if o.unread else ""
+        header = f"[b]#{escape(o.channel_name)}[/]  ·  {author}{dot}"
+        src = o.parent_text or "(parent not loaded)"
+        preview = render_message(src[:120], self._name_of, self._custom_render)
+        word = "reply" if o.reply_count == 1 else "replies"
+        last = self._name_of(o.last_reply_user_id) if o.last_reply_user_id else "—"
+        meta = f"[dim]{o.reply_count} {word} · last by {escape(last)}[/dim]"
+        return f"{header}\n  [dim]>[/dim] {preview}\n  {meta}"
 
 
 class ThreadPanel(Vertical):
