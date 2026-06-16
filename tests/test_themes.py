@@ -59,10 +59,21 @@ def test_theme_variables_use_css_var_names():
 
 
 def test_theme_variables_enforce_sidebar_contrast():
-    # every built-in's emitted surface separates from bg by >= 6 L*
+    # every hex (non-ANSI) built-in's emitted surface separates from bg by >= 6 L*
     for name in theme_names():
         v = theme_variables(name)
+        if not (v["bg"].startswith("#") and v["surface"].startswith("#")):
+            continue  # ANSI-palette themes follow the terminal, exempt from contrast
         assert abs(lstar(v["bg"]) - lstar(v["surface"])) >= 6.0, name
+
+
+def test_ansi_themes_use_ansi_palette_and_skip_contrast():
+    for name in ("ansi-dark", "ansi-light"):
+        assert name in theme_names()
+        v = theme_variables(name)
+        # values are ANSI palette names, untouched by the contrast nudge
+        assert v["bg"] == "ansi_default"
+        assert all(not val.startswith("#") for val in v.values())
 
 
 def test_load_theme_files_registers_and_overrides(tmp_path):

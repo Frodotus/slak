@@ -85,6 +85,19 @@ THEMES: dict[str, dict[str, str]] = {
         "text": "#e0def4", "text_muted": "#6e6a86", "accent": "#c4a7e7",
         "hairline": "#26233a",
     },
+    # ANSI-palette themes follow the terminal's own 16 colours (spec 05 §ANSI):
+    # the UI re-themes when the user re-themes their terminal. Exempt from the
+    # CIELAB contrast rule since the actual colours are terminal-defined.
+    "ansi-dark": {
+        "bg": "ansi_default", "surface": "ansi_bright_black", "surface_dark": "ansi_black",
+        "text": "ansi_default", "text_muted": "ansi_bright_black",
+        "accent": "ansi_bright_blue", "hairline": "ansi_bright_black",
+    },
+    "ansi-light": {
+        "bg": "ansi_default", "surface": "ansi_white", "surface_dark": "ansi_bright_white",
+        "text": "ansi_default", "text_muted": "ansi_bright_black",
+        "accent": "ansi_blue", "hairline": "ansi_white",
+    },
 }
 
 
@@ -106,7 +119,9 @@ def theme_variables(name: str) -> dict[str, str]:
     """
     theme = get_theme(name)
     out = {slot.replace("_", "-"): theme[slot] for slot in SLOTS}
-    out["surface"] = ensure_contrast(theme["bg"], theme["surface"])
+    bg, surface = theme["bg"], theme["surface"]
+    if bg.startswith("#") and surface.startswith("#"):  # ANSI themes are exempt
+        out["surface"] = ensure_contrast(bg, surface)
     return out
 
 

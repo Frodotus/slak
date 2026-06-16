@@ -64,8 +64,10 @@ Early MVP scaffold. Working today:
 Starred channels/DMs surface in a pinned `★ Starred` section (live on
 `star_added`/`star_removed`).
 
-Not yet wired: ANSI-palette themes, sixel image protocol. See the spec set for
-the full roadmap.
+Themes include `ansi-dark`/`ansi-light` that follow your terminal's own 16 colours.
+
+Not yet wired: sixel image protocol; ANSI SGR substitution for message text.
+See the spec set for the full roadmap.
 
 ## Use a real workspace
 
