@@ -34,6 +34,8 @@ Screen {
 }
 #sidebar ListView { background: transparent; }
 #sidebar ListItem { background: transparent; padding: 0 1; color: $text; }
+/* one line per channel — clip long names with an ellipsis, never wrap */
+#sidebar ListItem Static { width: 100%; text-wrap: nowrap; text-overflow: ellipsis; }
 #sidebar ListView:focus > ListItem.-highlight { background: $surface-dark; }
 #sidebar ListItem.-highlight { color: $text; text-style: bold; }
 

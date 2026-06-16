@@ -44,6 +44,28 @@ async def test_dm_channel_name_resolves_to_peer_display_name():
         assert app._sidebar_channels[0].name == "bob"
 
 
+async def test_sidebar_channel_names_clip_not_wrap():
+    from textual.widgets import ListItem, Static
+
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "a-very-long-channel-name-that-exceeds-the-sidebar")],
+        history={"C1": [RemoteMessage("1.0", "u", "hi")]},
+    )
+    app = PyslkApp(
+        router=WorkspaceRouter.single(client),
+        cache=Cache.open(":memory:"),
+        config=Config(),
+    )
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        item = app.query_one("#sidebar", Sidebar).get_child_by_id("C1", ListItem)
+        static = item.query_one(Static)
+        assert static.styles.text_wrap == "nowrap"
+        assert static.styles.text_overflow == "ellipsis"
+
+
 def make_app() -> PyslkApp:
     client = FakeSlackClient(
         team_id="T1",
