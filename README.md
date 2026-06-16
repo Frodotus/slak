@@ -64,6 +64,28 @@ config. ~340 tests.
 
 Not yet wired: the sixel image protocol (half-blocks cover non-kitty terminals).
 
+## Install
+
+Recommended — [pipx](https://pipx.pypa.io) installs it isolated and puts `slak`
+on your `PATH` globally:
+
+```bash
+pipx install slak
+pipx install 'slak[mcp]'   # with the optional MCP adapter
+```
+
+Or with pip (ideally in a virtualenv):
+
+```bash
+pip install slak
+```
+
+Either way you get a `slak` command:
+
+```bash
+slak --help
+```
+
 ## Use a real workspace
 
 ```bash
