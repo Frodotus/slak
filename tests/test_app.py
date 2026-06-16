@@ -19,9 +19,29 @@ from textual.widgets import Input
 from slak.app import PyslkApp
 from slak.cache import Cache
 from slak.config import Config
-from slak.slack import FakeSlackClient, RemoteChannel, RemoteMessage
+from slak.slack import FakeSlackClient, RemoteChannel, RemoteMessage, RemoteUser
 from slak.ui.widgets import MessagePane, Sidebar
 from slak.workspace import WorkspaceRouter
+
+
+async def test_dm_channel_name_resolves_to_peer_display_name():
+    client = FakeSlackClient(
+        team_id="T1",
+        team_name="Acme",
+        channels=[RemoteChannel("D1", "", "dm", user="U2")],
+        history={"D1": [RemoteMessage("1.0", "U2", "hey")]},
+        users=[RemoteUser("U2", "bob")],
+    )
+    app = PyslkApp(
+        router=WorkspaceRouter.single(client),
+        cache=Cache.open(":memory:"),
+        config=Config(),
+    )
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        assert app._channel_names["D1"] == "bob"
+        assert app._sidebar_channels[0].name == "bob"
 
 
 def make_app() -> PyslkApp:

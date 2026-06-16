@@ -226,7 +226,10 @@ class HttpSlackClient:
             limit=1000,
         )
         return [
-            RemoteChannel(id=c["id"], name=c.get("name", ""), type=_channel_type(c))
+            RemoteChannel(
+                id=c["id"], name=c.get("name", ""), type=_channel_type(c),
+                user=c.get("user", ""),
+            )
             for c in data.get("channels", [])
         ]
 

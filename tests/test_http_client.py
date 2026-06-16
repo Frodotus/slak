@@ -61,6 +61,7 @@ async def test_list_channels_maps_types():
     assert chans[0] == RemoteChannel("C1", "general", "channel")
     assert chans[1].type == "private"
     assert chans[2].type == "dm"
+    assert chans[2].user == "U9"  # DM carries the peer user id for name resolution
 
 
 async def test_history_returns_oldest_first_with_raw_json():

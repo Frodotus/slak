@@ -401,6 +401,7 @@ class PyslkApp(App):
         await self._load_users(client)
         await self._load_custom_emoji(client)
         channels = await client.list_channels()
+        self._resolve_dm_names(client.team_id, channels)
         self._channel_names = {ch.id: ch.name for ch in channels}
         self._upsert_channels(client.team_id, channels)
         self._sidebar_channels = channels
@@ -415,6 +416,13 @@ class PyslkApp(App):
             self.query_one("#messages", MessagePane).set_messages([], self._name_of)
         self._refresh_sidebar_unread()
         self._update_status()
+
+    def _resolve_dm_names(self, team_id: str, channels) -> None:
+        """Give DM channels (no Slack-provided name) the peer's display name."""
+        names = self._names.get(team_id, {})
+        for ch in channels:
+            if ch.type == "dm" and ch.user and not ch.name:
+                ch.name = names.get(ch.user, ch.user)
 
     # --- channels ---------------------------------------------------------
 
