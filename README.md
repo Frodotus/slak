@@ -50,7 +50,7 @@ command palette (every action), and `F1` shows the full keybinding reference.
   plus `~/.config/slak/themes/*.toml` and `[theme]` overrides), switched live with
   `Ctrl+Y`; the sidebar is auto-kept contrasting (CIELAB).
 - Private channels show a padlock — a single-width Nerd Font glyph when a Nerd Font
-  is detected, else a `🔒` fallback (`[appearance] nerd_font = auto|on|off`).
+  is detected, else a narrow `⚿` fallback (`[appearance] nerd_font = auto|on|off`).
 
 **Realtime & integration**
 

@@ -50,7 +50,7 @@ def test_private_channel_glyph_nerd_vs_fallback():
         set_private_glyph(True)
         assert _channel_glyph(priv) == ""          # Nerd padlock
         set_private_glyph(False)
-        assert _channel_glyph(priv) == "🔒"      # fallback lock
+        assert _channel_glyph(priv) == "⚿"        # fallback key glyph
         assert _channel_glyph(RemoteChannel("C2", "general", "channel")) == "#"
         assert _channel_glyph(RemoteChannel("D1", "bob", "dm")) == "●"
     finally:

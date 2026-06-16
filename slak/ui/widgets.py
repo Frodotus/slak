@@ -86,7 +86,7 @@ class Rail(Static):
 
 
 NERD_LOCK = ""  # Nerd Font padlock: single-width, matches slk
-FALLBACK_LOCK = "🔒"  # broadly-supported lock when no Nerd Font (wider)
+FALLBACK_LOCK = "⚿"  # narrow key glyph fallback when no Nerd Font
 _private_glyph = NERD_LOCK
 
 
