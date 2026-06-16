@@ -40,6 +40,7 @@ from slak.cache import Cache, Channel
 from slak.debuglog import debug
 from slak.emoji import resolve_custom_emoji
 from slak.images import EmojiImages, detect_protocol, tmux_passthrough
+from slak.nav import NavHistory
 from slak.text import fold
 from slak.config import Config
 from slak.notify import (
@@ -95,6 +96,8 @@ class PyslkApp(App):
         Binding("ctrl+b", "toggle_sidebar", show=False),
         Binding("ctrl+k", "find_channel", show=False, priority=True),
         Binding("ctrl+w", "switch_workspace_overlay", show=False, priority=True),
+        Binding("alt+left", "history_back", show=False),
+        Binding("alt+right", "history_forward", show=False),
         Binding("f1", "help", show=False, priority=True),
         Binding("ctrl+r", "react", show=False),
         Binding("ctrl+f", "search", show=False),
@@ -114,6 +117,7 @@ class PyslkApp(App):
         self.config = config
         self._notifier = notifier or DesktopNotifier()
         self.active_channel: str | None = None
+        self._nav: dict[str, NavHistory] = {}  # team_id -> channel back/forward
         self._channel_names: dict[str, str] = {}
         self._chan_meta: dict[str, dict[str, tuple[str, str]]] = {}  # team->cid->(name,type)
         self._names: dict[str, dict[str, str]] = {}  # team_id -> {user_id: display}
@@ -286,11 +290,35 @@ class PyslkApp(App):
 
     # --- channels ---------------------------------------------------------
 
-    async def open_channel(self, channel_id: str) -> None:
+    def _nav_for(self, team_id: str) -> NavHistory:
+        return self._nav.setdefault(team_id, NavHistory())
+
+    def _valid_channels(self, team_id: str) -> set[str]:
+        return set(self._chan_meta.get(team_id, {}))
+
+    async def action_history_back(self) -> None:
+        team = self.router.active_team_id()
+        if team is None:
+            return
+        channel_id = self._nav_for(team).back(self._valid_channels(team))
+        if channel_id:
+            await self.open_channel(channel_id, record_history=False)
+
+    async def action_history_forward(self) -> None:
+        team = self.router.active_team_id()
+        if team is None:
+            return
+        channel_id = self._nav_for(team).forward(self._valid_channels(team))
+        if channel_id:
+            await self.open_channel(channel_id, record_history=False)
+
+    async def open_channel(self, channel_id: str, record_history: bool = True) -> None:
         client = self.client
         if client is None:
             return
         self.active_channel = channel_id
+        if record_history and (team := self.router.active_team_id()) is not None:
+            self._nav_for(team).visit(channel_id)
         name = self._channel_names.get(channel_id, channel_id)
         self.query_one("#header", Static).update(f"#{name}")
         # cache-first: render what we have instantly…

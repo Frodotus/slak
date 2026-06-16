@@ -33,6 +33,7 @@ KEYBINDINGS: list[tuple[str, list[tuple[str, str]]]] = [
             ("Ctrl+K", "Jump to channel / DM"),
             ("Alt+1…9", "Switch workspace"),
             ("Ctrl+W", "Workspace switcher (filterable)"),
+            ("Alt+← / Alt+→", "Channel history back / forward"),
             ("Ctrl+F", "Find in channel"),
             ("Ctrl+Shift+F", "Find in workspace"),
             ("Ctrl+T", "Toggle thread panel"),

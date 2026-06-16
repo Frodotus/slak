@@ -38,6 +38,8 @@ class PyslkCommands(Provider):
             ("Switch workspace…", "switch_workspace_overlay", "Filterable workspace switcher"),
             ("Help: keyboard shortcuts", "help", "Show the keybinding reference"),
             ("Toggle sidebar", "toggle_sidebar", "Show or hide the channel sidebar"),
+            ("Back: previous channel", "history_back", "Go back in channel history"),
+            ("Forward: next channel", "history_forward", "Go forward in channel history"),
             ("Presence: Active", "presence_active", "Set yourself active"),
             ("Presence: Away", "presence_away", "Set yourself away"),
             ("Do Not Disturb: 30 minutes", "snooze(30)", "Snooze notifications 30m"),
