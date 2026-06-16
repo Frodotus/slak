@@ -14,7 +14,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from slak.themes import SLOTS, get_theme, theme_names, theme_variables
+import copy
+
+import slak.themes as themes_mod
+from slak.color import lstar
+from slak.themes import (
+    SLOTS,
+    get_theme,
+    load_theme_files,
+    theme_names,
+    theme_variables,
+)
 
 
 def test_dark_is_available():
@@ -46,3 +56,32 @@ def test_theme_variables_use_css_var_names():
     }
     # values match the slot table (surface_dark slot -> "surface-dark" css var)
     assert vars_["surface-dark"] == get_theme("dark")["surface_dark"]
+
+
+def test_theme_variables_enforce_sidebar_contrast():
+    # every built-in's emitted surface separates from bg by >= 6 L*
+    for name in theme_names():
+        v = theme_variables(name)
+        assert abs(lstar(v["bg"]) - lstar(v["surface"])) >= 6.0, name
+
+
+def test_load_theme_files_registers_and_overrides(tmp_path):
+    snapshot = copy.deepcopy(themes_mod.THEMES)
+    try:
+        (tmp_path / "mytheme.toml").write_text(
+            "\n".join(f'{s} = "#101010"' for s in SLOTS)
+        )
+        (tmp_path / "dark.toml").write_text(
+            "\n".join(f'{s} = "#abcdef"' for s in SLOTS)
+        )
+        n = load_theme_files(tmp_path)
+        assert n == 2
+        assert "mytheme" in theme_names()
+        assert get_theme("dark")["accent"] == "#abcdef"  # built-in overridden
+    finally:
+        themes_mod.THEMES.clear()
+        themes_mod.THEMES.update(snapshot)
+
+
+def test_load_theme_files_missing_dir_is_zero(tmp_path):
+    assert load_theme_files(tmp_path / "nope") == 0

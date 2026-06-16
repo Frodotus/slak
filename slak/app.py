@@ -134,12 +134,12 @@ class PyslkApp(App):
         config_path: Path | None = None,
     ):
         # Set before super().__init__(): Textual reads get_css_variables() during
-        # App init, which needs the active theme name.
+        # App init, which needs the active theme name + any inline overrides.
         self._theme_name = config.theme  # active colour theme (spec 05 §2)
+        self.config = config
         super().__init__()
         self.router = router
         self.cache = cache
-        self.config = config
         self._notifier = notifier or DesktopNotifier()
         self._open_url = url_opener or webbrowser.open
         self._config_path = config_path
@@ -173,6 +173,9 @@ class PyslkApp(App):
         # can reference $bg/$surface/$accent/… (spec 05 §2).
         variables = super().get_css_variables()
         variables.update(themes.theme_variables(self._theme_name))
+        # [theme] inline per-slot overrides win (spec 05 §custom)
+        for slot, value in self.config.theme_overrides.items():
+            variables[slot.replace("_", "-")] = value
         return variables
 
     def _apply_theme(self, name: str) -> None:

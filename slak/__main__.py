@@ -42,6 +42,7 @@ from slak.workspace import WorkspaceRouter
 
 CONFIG_PATH = Path.home() / ".config" / "slak" / "config.toml"
 CACHE_PATH = Path.home() / ".local" / "share" / "slak" / "cache.db"
+THEMES_DIR = Path.home() / ".config" / "slak" / "themes"
 
 
 def load_config() -> Config:
@@ -135,6 +136,8 @@ def main() -> None:
         return
 
     cfg = load_config()
+    from slak.themes import load_theme_files
+    load_theme_files(THEMES_DIR)  # user themes override built-ins by name
     tokens = load_tokens()
     if args.demo or not tokens:
         router = WorkspaceRouter.single(demo_client())

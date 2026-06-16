@@ -24,6 +24,11 @@ restart. This ships a representative subset of the full ~70-theme set.
 
 from __future__ import annotations
 
+import tomllib
+from pathlib import Path
+
+from slak.color import ensure_contrast
+
 # The slots referenced by app.tcss (kept in sync with it).
 SLOTS = ("accent", "bg", "hairline", "surface", "surface_dark", "text", "text_muted")
 
@@ -94,6 +99,40 @@ def get_theme(name: str) -> dict[str, str]:
 
 
 def theme_variables(name: str) -> dict[str, str]:
-    """Slots as Textual CSS variables (``surface_dark`` slot → ``$surface-dark``)."""
+    """Slots as Textual CSS variables (``surface_dark`` slot → ``$surface-dark``).
+
+    ``surface`` is contrast-adjusted against ``bg`` so the sidebar always reads as
+    separate from the message pane (spec 05 §contrast).
+    """
     theme = get_theme(name)
-    return {slot.replace("_", "-"): theme[slot] for slot in SLOTS}
+    out = {slot.replace("_", "-"): theme[slot] for slot in SLOTS}
+    out["surface"] = ensure_contrast(theme["bg"], theme["surface"])
+    return out
+
+
+def register_theme(name: str, slots: dict[str, str]) -> None:
+    """Register/override a theme; must define every slot in :data:`SLOTS`."""
+    THEMES[name] = {s: slots[s] for s in SLOTS}
+
+
+def load_theme_files(directory) -> int:
+    """Load user themes from ``<directory>/*.toml`` (spec 05 §custom).
+
+    Each file's stem is the theme name (same name as a built-in overrides it);
+    its keys are the slots, flat or under a ``[theme]`` table. Returns the count
+    loaded; malformed/incomplete files are skipped.
+    """
+    d = Path(directory)
+    if not d.is_dir():
+        return 0
+    loaded = 0
+    for path in sorted(d.glob("*.toml")):
+        try:
+            data = tomllib.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        slots = data.get("theme", data)
+        if all(s in slots for s in SLOTS):
+            register_theme(path.stem, slots)
+            loaded += 1
+    return loaded

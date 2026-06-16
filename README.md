@@ -35,7 +35,9 @@ Early MVP scaffold. Working today:
 - `Ctrl+O` opens link(s) in the selected message (picker when there's more than one).
 - `Ctrl+E` edits your selected message; "Delete message" (palette) removes it.
 - `Ctrl+Y` picks a colour theme for the active workspace (`Ctrl+Shift+Y` sets the
-  default); ~10 built-in themes so far, applied live with no restart.
+  default), applied live with no restart. 10 built-ins, plus your own from
+  `~/.config/slak/themes/*.toml` and `[theme]` per-slot overrides; the sidebar is
+  auto-kept contrasting from the message pane (CIELAB).
 - `Ctrl+N` starts a new message — filter users, `Tab` to add several (group DM),
   `Enter` to open the DM.
 
@@ -55,8 +57,8 @@ Early MVP scaffold. Working today:
   (`slak_set_draft`, draft-only — you review and send). Adapter: `slak --mcp`
   (needs `pip install 'slak[mcp]'`).
 
-Not yet wired: Slack-native sections / stars, the full ~70-theme set, inline
-block images. See the spec set for the full roadmap.
+Not yet wired: Slack-native sections / stars, ANSI-palette themes, inline block
+images. See the spec set for the full roadmap.
 
 ## Use a real workspace
 

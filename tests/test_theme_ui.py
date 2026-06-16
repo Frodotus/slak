@@ -66,6 +66,23 @@ async def test_picking_theme_applies_and_records_for_workspace():
         assert app.config.resolve_theme("T1") == "dracula"
 
 
+async def test_inline_theme_overrides_win():
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("100.0", "alice", "hi")]},
+    )
+    app = PyslkApp(
+        router=WorkspaceRouter.single(client),
+        cache=Cache.open(":memory:"),
+        config=Config.loads('[theme]\naccent = "#ff00ff"\n'),
+    )
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        assert app.get_css_variables()["accent"] == "#ff00ff"
+
+
 async def test_default_theme_pick_sets_global_default():
     app = make_app()
     async with app.run_test() as pilot:
