@@ -392,3 +392,13 @@ async def test_list_channels_captures_topic():
         ]})
     chans = await make_client(handler).list_channels()
     assert chans[0].topic == "Daily standup"
+
+
+async def test_list_users_captures_avatar():
+    def handler(request):
+        return httpx.Response(200, json={"ok": True, "members": [
+            {"id": "U1", "name": "alice", "profile": {"display_name": "Alice",
+             "image_72": "https://x/alice.png"}},
+        ]})
+    users = await make_client(handler).list_users()
+    assert users[0].avatar == "https://x/alice.png"

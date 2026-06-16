@@ -108,6 +108,9 @@ def _channel_glyph(ch: RemoteChannel) -> str:
 THREADS_ROW_ID = "threads-landmark"
 # Prefix for collapsible section-header rows (spec 03 §9).
 SECTION_PREFIX = "sec-"
+# Avatar footprint (cells) — matches slk: 4 cols × 2 rows, halfblock.
+AVATAR_COLS = 4
+AVATAR_ROWS = 2
 
 
 class Sidebar(ListView):
@@ -208,12 +211,16 @@ class MessagePane(VerticalScroll, can_focus=True):
         self._name_of = str
         self._custom_render = None
         self._image_render = None
+        self._avatar_render = None
 
     def set_custom_render(self, fn) -> None:
         self._custom_render = fn
 
     def set_image_render(self, fn) -> None:
         self._image_render = fn
+
+    def set_avatar_render(self, fn) -> None:
+        self._avatar_render = fn
 
     def set_messages(self, messages: list[RemoteMessage], name_of=str) -> None:
         self.remove_children()
@@ -346,7 +353,23 @@ class MessagePane(VerticalScroll, can_focus=True):
                 for r in m.reactions
             )
             body += f"\n{pills}"
-        return body
+        return self._with_avatar(m, body)
+
+    def _with_avatar(self, m: RemoteMessage, body: str) -> str:
+        """Prefix the message with its author's avatar in a left gutter — the
+        avatar's rows align with the first body lines; the rest are indented."""
+        avatar = self._avatar_render(m.user_id) if self._avatar_render else None
+        if not avatar:
+            return body
+        rows = avatar.split("\n")
+        gutter = " " * AVATAR_COLS
+        lines = body.split("\n")
+        out = []
+        for i in range(max(len(rows), len(lines))):
+            cell = rows[i] if i < len(rows) else gutter
+            text = lines[i] if i < len(lines) else ""
+            out.append(f"{cell}  {text}".rstrip())
+        return "\n".join(out)
 
     def _reaction_emoji(self, name: str) -> str:
         if self._custom_render:

@@ -136,6 +136,7 @@ def _user_from_member(m: dict) -> RemoteUser:
         is_bot=bool(m.get("is_bot")),
         deleted=bool(m.get("deleted")),
         handle=m.get("name", ""),
+        avatar=prof.get("image_72") or prof.get("image_48") or "",
     )
 
 

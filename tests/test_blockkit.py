@@ -237,3 +237,17 @@ def test_human_message_still_uses_resolved_name():
     pane._name_of = lambda uid: {"U1": "alice"}.get(uid, uid)
     body = pane._body(RemoteMessage("1.0", "U1", "hi", username="ignored"))
     assert "alice" in body  # resolved name wins over the username override
+
+
+def test_avatar_gutter_prefixes_message_lines_when_enabled():
+    from slak.slack import RemoteMessage
+    from slak.ui.widgets import MessagePane
+    pane = MessagePane()
+    pane.set_avatar_render(lambda uid: "AVROW0\nAVROW1")  # fake 2-row avatar
+    body = pane._body(RemoteMessage("1.0", "U1", "hello\nworld"))
+    lines = body.split("\n")
+    assert lines[0].startswith("AVROW0")   # avatar row 0 on the header line
+    assert lines[1].startswith("AVROW1")   # avatar row 1 on the next line
+    # no avatar render -> no gutter
+    pane.set_avatar_render(None)
+    assert pane._body(RemoteMessage("2.0", "U1", "hi")).startswith("[b]")

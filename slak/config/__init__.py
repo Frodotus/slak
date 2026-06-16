@@ -83,6 +83,7 @@ class Config:
     group_within_minutes: int = 0
     image_protocol: str = "auto"  # auto | kitty | sixel | halfblock | off
     nerd_font: str = "auto"  # auto | on | off — private-channel padlock glyph
+    avatars: str = "off"  # on | off — show user avatars beside messages
     emoji_images: str = "on"  # on | off — kitty inline custom-emoji images
     notify_enabled: bool = True
     notify_on_mention: bool = True
@@ -130,6 +131,7 @@ class Config:
             group_within_minutes=int(appearance.get("group_within_minutes", 0)),
             image_protocol=appearance.get("image_protocol", "auto"),
             nerd_font=appearance.get("nerd_font", "auto"),
+            avatars=appearance.get("avatars", "off"),
             emoji_images=appearance.get("emoji_images", "on"),
             notify_enabled=bool(notif.get("enabled", True)),
             notify_on_mention=bool(notif.get("on_mention", True)),
@@ -161,6 +163,7 @@ class Config:
         appearance["group_within_minutes"] = self.group_within_minutes
         appearance["image_protocol"] = self.image_protocol
         appearance["nerd_font"] = self.nerd_font
+        appearance["avatars"] = self.avatars
         appearance["emoji_images"] = self.emoji_images
         doc["appearance"] = appearance
 

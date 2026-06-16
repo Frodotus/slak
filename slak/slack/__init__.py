@@ -97,6 +97,7 @@ class RemoteUser:
     is_bot: bool = False
     deleted: bool = False
     handle: str = ""  # the @username, for resolving MPIM names
+    avatar: str = ""  # profile image URL (for avatars)
 
 
 @dataclass

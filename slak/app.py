@@ -42,7 +42,7 @@ from slak.cache import Cache, Channel, ThreadSubscription
 from slak.debuglog import debug
 from slak.emoji import resolve_custom_emoji
 from slak.blockkit import image_urls
-from slak.images import EmojiImages, MediaImages, detect_protocol, tmux_passthrough
+from slak.images import EmojiImages, MediaImages, detect_protocol, halfblock, tmux_passthrough
 from slak.links import extract_links
 from slak.nav import NavHistory
 from slak.text import fold
@@ -95,6 +95,8 @@ from slak.ui.widgets import (
     ThreadList,
     ThreadPanel,
     WorkspaceSwitcher,
+    AVATAR_COLS,
+    AVATAR_ROWS,
     glyph_for_type,
     set_private_glyph,
 )
@@ -160,6 +162,8 @@ class PyslkApp(App):
         self._chan_meta: dict[str, dict[str, tuple[str, str]]] = {}  # team->cid->(name,type)
         self._names: dict[str, dict[str, str]] = {}  # team_id -> {user_id: display}
         self._handles: dict[str, dict[str, str]] = {}  # team_id -> {handle: display}
+        self._avatar_urls: dict[str, dict[str, str]] = {}  # team_id -> {uid: url}
+        self._avatar_markup: dict[str, str] = {}  # url -> rendered halfblock
         self._custom_emoji: dict[str, dict[str, str]] = {}  # team_id -> {name: url}
         self._emoji_images: EmojiImages | None = None
         self._media_images: MediaImages | None = None
@@ -234,6 +238,7 @@ class PyslkApp(App):
                 pane = self.query_one(pane_id, MessagePane)
                 pane.set_custom_render(self._custom_render)
                 pane.set_image_render(self._image_render)
+                pane.set_avatar_render(self._avatar_render)
             except Exception:
                 pass
         self.query_one("#threads", ThreadList).set_custom_render(self._custom_render)
@@ -700,6 +705,7 @@ class PyslkApp(App):
         self.run_worker(self._sync_channel(client, channel_id), exclusive=False)
         self.run_worker(self._prefetch_emoji(), exclusive=False)
         self.run_worker(self._prefetch_images(), exclusive=False)
+        self.run_worker(self._prefetch_avatars(), exclusive=False)
         self._resolve_bots()
 
     async def _sync_channel(self, client: SlackClient, channel_id: str) -> None:
@@ -732,6 +738,9 @@ class PyslkApp(App):
         self._names[client.team_id] = {u.id: u.name for u in users}
         self._handles[client.team_id] = {
             u.handle: u.name for u in users if u.handle
+        }
+        self._avatar_urls[client.team_id] = {
+            u.id: u.avatar for u in users if u.avatar
         }
 
     async def _load_custom_emoji(self, client: SlackClient) -> None:
@@ -903,6 +912,35 @@ class PyslkApp(App):
             names[bot_id] = name
             if client is self.client:
                 self._refresh_messages()
+
+    def _avatar_render(self, user_id: str):
+        if self.config.avatars != "on":
+            return None
+        team = self.router.active_team_id() or ""
+        url = self._avatar_urls.get(team, {}).get(user_id)
+        return self._avatar_markup.get(url) if url else None
+
+    async def _prefetch_avatars(self) -> None:
+        if self.config.avatars != "on":
+            return
+        team = self.router.active_team_id() or ""
+        urls = self._avatar_urls.get(team, {})
+        seen, needed = set(), []
+        for m in self.query_one("#messages", MessagePane)._messages:
+            url = urls.get(m.user_id)
+            if url and url not in self._avatar_markup and url not in seen:
+                seen.add(url)
+                needed.append(url)
+        changed = False
+        for url in needed:
+            try:
+                raw = await self._fetch_image(url)
+                self._avatar_markup[url] = halfblock(raw, AVATAR_COLS, AVATAR_ROWS)
+                changed = True
+            except Exception:
+                pass
+        if changed:
+            self._refresh_messages()
 
     def _resolve_bots(self) -> None:
         """Resolve bot_id authors (B…) of visible messages via bots.info."""
