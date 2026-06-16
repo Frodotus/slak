@@ -231,6 +231,13 @@ class Config:
         """Set the global default theme for workspaces without their own."""
         self.theme = theme
 
+    def uses_slack_sections(self, team_id: str) -> bool:
+        """Whether to use Slack-native sections for a workspace (per-ws → global)."""
+        ws = self._by_team_id(team_id)
+        if ws is not None and ws.use_slack_sections is not None:
+            return ws.use_slack_sections
+        return self.use_slack_sections
+
     def sections_for(self, team_id: str) -> dict[str, list[str]]:
         """Section globs for a workspace — per-workspace fully replaces global."""
         ws = self._by_team_id(team_id)

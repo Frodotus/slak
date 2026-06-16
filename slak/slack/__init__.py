@@ -75,6 +75,18 @@ class RemoteMessage:
 
 
 @dataclass
+class RemoteSection:
+    """A Slack-native sidebar section (``users.channelSections.list``, spec 03 §9)."""
+
+    id: str
+    name: str
+    type: str = "standard"  # standard|channels|direct_messages|recent_apps|stars|…
+    emoji: str = ""
+    next_id: str = ""  # next_channel_section_id (linked-list ordering)
+    channel_ids: list[str] = field(default_factory=list)
+
+
+@dataclass
 class RemoteUser:
     id: str
     name: str  # best display name (display_name › real_name › handle)
@@ -196,6 +208,8 @@ class SlackClient(Protocol):
 
     async def list_thread_subscriptions(self) -> list["ThreadSub"]: ...
 
+    async def list_channel_sections(self) -> list["RemoteSection"]: ...
+
     async def search(self, query: str) -> list[SearchResult]: ...
 
     async def list_custom_emoji(self) -> dict[str, str]: ...
@@ -221,6 +235,7 @@ class FakeSlackClient:
         users: list[RemoteUser] | None = None,
         custom_emoji: dict[str, str] | None = None,
         thread_subs: list["ThreadSub"] | None = None,
+        sections: list["RemoteSection"] | None = None,
     ):
         self.team_id = team_id
         self.team_name = team_name
@@ -230,6 +245,7 @@ class FakeSlackClient:
         self._users = {u.id: u for u in (users or [])}
         self._custom_emoji = custom_emoji or {}
         self._thread_subs = list(thread_subs or [])
+        self._sections = list(sections or [])
         self._events: asyncio.Queue[Event] = asyncio.Queue()
         self._self_user = "Uself"
         self.self_user_id = "Uself"
@@ -331,6 +347,9 @@ class FakeSlackClient:
 
     async def list_thread_subscriptions(self) -> list["ThreadSub"]:
         return list(self._thread_subs)
+
+    async def list_channel_sections(self) -> list["RemoteSection"]:
+        return list(self._sections)
 
     async def list_users(self) -> list[RemoteUser]:
         return list(self._users.values())

@@ -38,6 +38,7 @@ from slak.slack import (
     MessageEdited,
     NewMessage,
     DndChanged,
+    RemoteSection,
     PresenceChanged,
     Reaction,
     ReactionUpdated,
@@ -265,6 +266,25 @@ class HttpSlackClient:
 
     async def delete_message(self, channel_id: str, ts: str) -> None:
         await self._call("chat.delete", channel=channel_id, ts=ts)
+
+    async def list_channel_sections(self) -> list[RemoteSection]:
+        data = await self._call("users.channelSections.list")
+        out: list[RemoteSection] = []
+        for s in data.get("channel_sections", []):
+            out.append(
+                RemoteSection(
+                    id=s.get("channel_section_id", ""),
+                    name=s.get("name", ""),
+                    type=s.get("type", "standard"),
+                    emoji=s.get("emoji", "") or "",
+                    next_id=s.get("next_channel_section_id", "") or "",
+                    channel_ids=list(
+                        s.get("channel_ids_page", {}).get("channel_ids", [])
+                        or s.get("channel_ids", [])
+                    ),
+                )
+            )
+        return out
 
     async def open_conversation(self, user_ids: list[str]) -> RemoteChannel:
         data = await self._call("conversations.open", users=",".join(user_ids))

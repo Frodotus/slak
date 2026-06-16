@@ -45,8 +45,9 @@ Early MVP scaffold. Working today:
   never rewrites your config).
 - A `⚑ Threads` sidebar row opens the **threads view** — your subscribed threads,
   newest-reply first; the side panel follows the cursor.
-- **Sidebar sections** via config globs (`[sections.<name>] patterns = [...]`,
-  per-workspace override) — grouped, collapsible channel headers.
+- **Sidebar sections** — Slack-native sections (`users.channelSections.list`,
+  linked-list order, stars on top) when available, else config globs
+  (`[sections.<name>] patterns = [...]`); grouped, collapsible channel headers.
 - **Reconnect backfill** — on RTM reconnect, fetches each channel's missed history
   (4-wide pool, deduped per workspace) and refreshes threads/the open channel.
 - **Block Kit & legacy attachments** — bot/app messages (`blocks`/`attachments`)
@@ -57,8 +58,8 @@ Early MVP scaffold. Working today:
   (`slak_set_draft`, draft-only — you review and send). Adapter: `slak --mcp`
   (needs `pip install 'slak[mcp]'`).
 
-Not yet wired: Slack-native sections / stars, ANSI-palette themes, inline block
-images. See the spec set for the full roadmap.
+Not yet wired: live section WS updates, ANSI-palette themes, inline block images.
+See the spec set for the full roadmap.
 
 ## Use a real workspace
 

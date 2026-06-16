@@ -91,7 +91,7 @@ from slak.ui.widgets import (
     WorkspaceSwitcher,
 )
 from slak.ui.widgets import THREADS_ROW_ID
-from slak.sections import layout as section_layout
+from slak.sections import layout as section_layout, order_native_sections
 from slak.mcp import build_snapshot, default_socket_path, message_dict, serve as serve_mcp
 from slak import themes
 from slak.workspace import WorkspaceRouter
@@ -155,6 +155,7 @@ class PyslkApp(App):
         self.open_thread_channel: str = ""
         self._view: str = "channels"  # "channels" | "threads" (spec 03 §8)
         self._collapsed_sections: dict[str, set[str]] = {}  # team_id -> names
+        self._native_sections: dict[str, list] = {}  # team_id -> [RemoteSection]
         self._sidebar_channels: list = []  # active workspace's channels
         self._last_backfill: dict[str, float] = {}  # team_id -> monotonic ts
         self._search_matches: list[str] = []
@@ -396,6 +397,7 @@ class PyslkApp(App):
         self._channel_names = {ch.id: ch.name for ch in channels}
         self._upsert_channels(client.team_id, channels)
         self._sidebar_channels = channels
+        await self._load_native_sections(client)
         await self._populate_sidebar()
         await self._load_thread_subscriptions(client)
         self.active_channel = None
@@ -430,11 +432,43 @@ class PyslkApp(App):
         if channel_id:
             await self.open_channel(channel_id, record_history=False)
 
+    async def _load_native_sections(self, client: SlackClient) -> None:
+        """Fetch Slack-native sidebar sections once at workspace load (spec 03 §9)."""
+        if not self.config.uses_slack_sections(client.team_id):
+            return
+        try:
+            sections = await client.list_channel_sections()
+        except Exception as exc:
+            self.log(f"channel sections fetch failed: {exc!r}")
+            return
+        if sections:
+            self._native_sections[client.team_id] = sections
+
+    def _native_groups(self, sections, channels):
+        by_id = {c.id: c for c in channels}
+        assigned: set[str] = set()
+        groups = []
+        for s in order_native_sections(sections):
+            chans = [by_id[cid] for cid in s.channel_ids if cid in by_id]
+            assigned.update(c.id for c in chans)
+            label = f"{s.emoji} {s.name}".strip() if s.emoji else s.name
+            groups.append((label, chans))
+        ungrouped = [c for c in channels if c.id not in assigned]
+        if ungrouped:
+            groups.append((None, ungrouped))
+        return groups
+
     async def _populate_sidebar(self) -> None:
-        """Render the sidebar — grouped into config sections if any are defined,
+        """Render the sidebar — Slack-native sections, else config-glob sections,
         else a flat channel list (spec 03 §9)."""
         team = self.router.active_team_id() or ""
         sidebar = self.query_one("#sidebar", Sidebar)
+        native = self._native_sections.get(team)
+        collapsed = self._collapsed_sections.setdefault(team, set())
+        if native:
+            groups = self._native_groups(native, self._sidebar_channels)
+            await sidebar.set_sections(groups, collapsed)
+            return
         section_names = list(self.config.sections_for(team))
         if section_names:
             groups = section_layout(
@@ -442,7 +476,6 @@ class PyslkApp(App):
                 lambda n: self.config.match_section(team, n),
                 self._sidebar_channels,
             )
-            collapsed = self._collapsed_sections.setdefault(team, set())
             await sidebar.set_sections(groups, collapsed)
         else:
             await sidebar.set_channels(self._sidebar_channels)
