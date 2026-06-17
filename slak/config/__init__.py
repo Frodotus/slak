@@ -96,6 +96,7 @@ class Config:
     sections: dict[str, list[str]] = field(default_factory=dict)
     workspaces: list[WorkspaceConfig] = field(default_factory=list)
     nicknames: dict[str, str] = field(default_factory=dict)  # user_id -> local nickname
+    recent_reactions: list[str] = field(default_factory=list)  # MRU emoji shortcodes
 
     @classmethod
     def loads(cls, text: str) -> "Config":
@@ -147,6 +148,7 @@ class Config:
             sections=_parse_sections(data.get("sections", {})),
             workspaces=workspaces,
             nicknames={str(k): str(v) for k, v in data.get("nicknames", {}).items()},
+            recent_reactions=[str(x) for x in general.get("recent_reactions", [])],
         )
 
     def dumps(self) -> str:
@@ -162,6 +164,8 @@ class Config:
             general["default_workspace"] = self.default_workspace
         general["use_slack_sections"] = self.use_slack_sections
         general["typing_indicators"] = self.typing_indicators
+        if self.recent_reactions:
+            general["recent_reactions"] = self.recent_reactions
         doc["general"] = general
 
         appearance = tomlkit.table()
@@ -253,6 +257,15 @@ class Config:
     def set_default_theme(self, theme: str) -> None:
         """Set the global default theme for workspaces without their own."""
         self.theme = theme
+
+    def record_reaction(self, name: str, cap: int = 16) -> None:
+        """Record a used emoji shortcode as most-recently-used (deduped, capped)."""
+        name = name.strip().strip(":")
+        if not name:
+            return
+        recent = [r for r in self.recent_reactions if r != name]
+        recent.insert(0, name)
+        self.recent_reactions = recent[:cap]
 
     def set_nickname(self, user_id: str, nickname: str) -> None:
         """Set (or, with an empty value, clear) a local nickname for a user."""

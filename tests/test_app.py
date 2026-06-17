@@ -491,18 +491,33 @@ async def test_reaction_event_updates_displayed_message():
         assert any(r.emoji == "tada" for r in pane._messages[0].reactions)
 
 
-async def test_react_modal_returns_typed_emoji():
-    from slak.ui.widgets import ReactionModal
+async def test_reaction_picker_returns_highlighted_emoji():
+    from slak.ui.widgets import ReactionPicker
     app = make_app()
     result = {}
     async with app.run_test() as pilot:
         for _ in range(3):
             await pilot.pause()
-        app.push_screen(ReactionModal(), lambda v: result.__setitem__("v", v))
+        app.push_screen(ReactionPicker(), lambda v: result.__setitem__("v", v))
         await pilot.pause()
-        await pilot.press("t", "a", "d", "a", "enter")
+        await pilot.press("t", "a", "d", "a", "enter")  # match :tada: then accept
         await pilot.pause()
         assert result["v"] == "tada"
+
+
+async def test_reaction_picker_falls_back_to_raw_typed_name():
+    from slak.ui.widgets import ReactionPicker
+    app = make_app()
+    result = {}
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        app.push_screen(ReactionPicker(), lambda v: result.__setitem__("v", v))
+        await pilot.pause()
+        # a custom-ish name with no standard match — still react with the raw name
+        await pilot.press(*list("zzunknownzz"), "enter")
+        await pilot.pause()
+        assert result["v"] == "zzunknownzz"
 
 
 def make_search_app() -> PyslkApp:
@@ -959,6 +974,35 @@ async def test_nickname_overrides_display_name_and_persists(tmp_path):
         assert 'U1 = "Boss"' in cfg_path.read_text() or '"U1"' in cfg_path.read_text()
         body = app.query_one("#messages", MessagePane)._body(RemoteMessage("1.0", "U1", "hi"))
         assert "Boss" in body and "Joni" not in body
+
+
+async def test_reaction_picker_shows_recent_when_empty_then_filters_on_type():
+    from textual.widgets import OptionList
+    from slak.ui.widgets import ReactionPicker
+
+    app = make_app()
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        app.push_screen(ReactionPicker(recent=["tada", "joy"]))
+        for _ in range(2):
+            await pilot.pause()
+        results = app.screen.query_one("#react-results", OptionList)
+        assert results.size.width < app.size.width  # centered card, not fullscreen
+
+        def labels():
+            return [str(results.get_option_at_index(i).prompt)
+                    for i in range(results.option_count)]
+
+        # empty query -> the recent emoji
+        assert any("tada" in s for s in labels())
+        assert any("joy" in s for s in labels())
+        # typing filters across all emoji shortcodes
+        app.screen.query_one("#react-input", Input).focus()
+        await pilot.press("g", "r", "i", "n")
+        await pilot.pause()
+        assert any("grin" in s for s in labels())
+        assert not any("tada" in s for s in labels())  # recent no longer shown
 
 
 async def test_nickname_modal_returns_value_or_none():

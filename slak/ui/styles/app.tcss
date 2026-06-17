@@ -158,8 +158,12 @@ MultiUserPicker { align: center middle; background: $surface-dark 40%; }
 }
 #newmsg-input { border: none; background: $surface-dark; margin: 0 0 1 0; }
 #newmsg-results { height: auto; max-height: 12; background: $surface; }
-NicknameModal { align: center middle; background: $surface-dark 40%; }
-#nickname-box {
+/* Small single-input modals — centered cards (not fullscreen) */
+NicknameModal, EditModal {
+    align: center middle;
+    background: $surface-dark 40%;
+}
+#nickname-box, #edit-box {
     width: 50%;
     min-width: 30;
     max-width: 70;
@@ -168,8 +172,27 @@ NicknameModal { align: center middle; background: $surface-dark 40%; }
     border: round $hairline;
     padding: 1 2;
 }
-#nickname-title { color: $text-muted; padding-bottom: 1; }
-#nickname-input { border: none; background: $surface-dark; padding: 0 1; }
+#nickname-title, #edit-title { color: $text-muted; padding-bottom: 1; }
+#nickname-input, #edit-input {
+    border: none;
+    background: $surface-dark;
+    padding: 0 1;
+}
+
+/* Reaction emoji picker (fuzzy filter + recent) */
+ReactionPicker { align: center middle; background: $surface-dark 40%; }
+#react {
+    width: 50%;
+    min-width: 30;
+    max-width: 80;
+    height: auto;
+    max-height: 70%;
+    background: $surface;
+    border: round $hairline;
+    padding: 1 1;
+}
+#react-input { border: none; background: $surface-dark; margin: 0 0 1 0; }
+#react-results { height: auto; max-height: 12; background: $surface; }
 
 ImagePreview { align: center middle; background: $surface-dark 70%; }
 #image-preview {

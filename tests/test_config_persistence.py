@@ -47,6 +47,19 @@ def test_colored_names_defaults_off_and_roundtrips():
     assert roundtrip(Config(colored_names=True)).colored_names is True
 
 
+def test_recent_reactions_roundtrip_and_record_is_mru():
+    cfg = Config()
+    assert cfg.recent_reactions == []
+    cfg.record_reaction("tada")
+    cfg.record_reaction("+1")
+    cfg.record_reaction("tada")            # re-use moves to front, no dup
+    assert cfg.recent_reactions == ["tada", "+1"]
+    assert roundtrip(cfg).recent_reactions == ["tada", "+1"]
+    for i in range(30):
+        cfg.record_reaction(f"e{i}")
+    assert len(cfg.recent_reactions) <= 16  # capped
+
+
 def test_nicknames_roundtrip_and_set_helper():
     cfg = Config()
     assert cfg.nicknames == {}

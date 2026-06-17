@@ -92,7 +92,7 @@ from slak.ui.widgets import (
     NicknameModal,
     MessagePane,
     Rail,
-    ReactionModal,
+    ReactionPicker,
     SearchBar,
     SearchResultsModal,
     Sidebar,
@@ -1573,9 +1573,14 @@ class PyslkApp(App):
         msg = self.query_one("#messages", MessagePane).selected_message()
         if msg is None or self.active_channel is None or self.client is None:
             return
-        emoji = await self.push_screen_wait(ReactionModal())
+        customs = list(self._custom_emoji.get(self.router.active_team_id() or "", {}))
+        emoji = await self.push_screen_wait(
+            ReactionPicker(self.config.recent_reactions, customs)
+        )
         if emoji:
             await self._add_reaction(self.active_channel, msg.ts, emoji)
+            self.config.record_reaction(emoji)
+            self._persist_config()
 
     async def _add_reaction(self, channel: str, ts: str, emoji: str) -> None:
         client = self.client

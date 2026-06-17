@@ -38,7 +38,7 @@ from textual.screen import ModalScreen
 from slak.markup import escape
 
 from slak.blockkit import render_extras
-from slak.emoji import emoji_glyph
+from slak.emoji import emoji_glyph, match as emoji_match
 from slak.finder import rank_by_name
 from slak.help import render_help
 from slak.render import render_message
@@ -525,21 +525,6 @@ class ThreadPanel(Vertical):
         self.query_one("#thread-messages", MessagePane).add_message(m, name_of)
 
 
-class ReactionModal(ModalScreen[str]):
-    """Minimal emoji-name input. Dismisses with the typed shortcode (or '')."""
-
-    BINDINGS = [Binding("escape", "cancel", show=False)]
-
-    def compose(self) -> ComposeResult:
-        yield Input(placeholder="emoji name (e.g. tada, +1)", id="reaction-input")
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        self.dismiss(event.value.strip())
-
-    def action_cancel(self) -> None:
-        self.dismiss("")
-
-
 class EditModal(ModalScreen[str]):
     """Edit-message input, prefilled with the current text (``Ctrl+E``, spec 04).
 
@@ -811,6 +796,52 @@ class LinkPicker(FuzzyPicker):
 
     def __init__(self, urls: list[str]):
         super().__init__([SimpleNamespace(id=u, name=u) for u in urls])
+
+
+class ReactionPicker(FuzzyPicker):
+    """Emoji picker for adding a reaction (``Ctrl+R``).
+
+    Empty query shows recently-used emoji; typing filters across all emoji
+    shortcodes (and the workspace's custom-emoji names). ``Enter`` accepts the
+    highlighted emoji, or — if nothing matches — the raw typed shortcode, so
+    power users can still react with any name. Dismisses with the shortcode or
+    ``None``."""
+
+    PREFIX = "react"
+    PLACEHOLDER = "React… (type to search, empty = recent)"
+
+    def __init__(self, recent: list[str] | None = None,
+                 customs: list[str] | None = None):
+        super().__init__([])  # populated dynamically from the query
+        self._recent = list(recent or [])
+        self._customs = list(customs or [])
+
+    def _populate(self, query: str) -> None:
+        q = query.strip().strip(":").lower()
+        if not q:
+            names = list(self._recent)
+        else:
+            names = [n for n, _ in emoji_match(q, limit=40)]
+            names += [c for c in self._customs if q in c.lower() and c not in names]
+        self._shown = [SimpleNamespace(id=n, name=n) for n in names]
+        opts = self._results()
+        opts.clear_options()
+        for n in names:
+            opts.add_option(self._row(n))
+        if names:
+            opts.highlighted = 0
+
+    def _row(self, name: str) -> str:
+        glyph = emoji_glyph(name)  # glyph, or ':name:' when not a safe unicode glyph
+        return f":{name}:" if glyph == f":{name}:" else f"{glyph}  :{name}:"
+
+    def _accept(self) -> None:
+        idx = self._results().highlighted
+        if idx is not None and 0 <= idx < len(self._shown):
+            self.dismiss(self._shown[idx].id)
+            return
+        raw = self.query_one(f"#{self.PREFIX}-input", Input).value.strip().strip(":")
+        self.dismiss(raw or None)
 
 
 class MultiUserPicker(ModalScreen):
