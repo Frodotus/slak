@@ -273,6 +273,7 @@ class PyslkApp(App):
                 pane.set_custom_render(self._custom_render)
                 pane.set_image_render(self._image_render)
                 pane.set_avatar_render(self._avatar_render)
+                pane.set_color_names(self.config.colored_names)
             except Exception:
                 pass
         self.query_one("#threads", ThreadList).set_custom_render(self._custom_render)

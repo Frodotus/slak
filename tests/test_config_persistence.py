@@ -42,6 +42,11 @@ def test_image_preview_defaults_to_terminal_and_roundtrips():
     assert roundtrip(Config(image_preview="gui")).image_preview == "gui"
 
 
+def test_colored_names_defaults_off_and_roundtrips():
+    assert Config().colored_names is False
+    assert roundtrip(Config(colored_names=True)).colored_names is True
+
+
 def test_dumps_then_loads_preserves_workspaces():
     cfg = Config(
         workspaces=[

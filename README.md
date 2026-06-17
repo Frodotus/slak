@@ -54,6 +54,8 @@ full keybinding reference.
   `Ctrl+Y`; the sidebar is auto-kept contrasting (CIELAB).
 - Optional **user avatars** beside messages (`[appearance] avatars = on`, off by
   default) — rendered as 4×2 half-blocks in a left gutter.
+- Optional **coloured author names** (`[appearance] colored_names = true`, off by
+  default) — each name tinted by a deterministic hash of the user id.
 - Private channels show a padlock — the single-width `` glyph when an installed
   font covers it (Nerd Font / FontAwesome, detected via fontconfig), else a narrow
   `⚿` fallback (`[appearance] nerd_font = auto|on|off`).

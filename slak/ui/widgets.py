@@ -22,7 +22,9 @@ The App owns data flow and Slack/cache interaction.
 
 from __future__ import annotations
 
+import hashlib
 import time
+from functools import lru_cache
 from types import SimpleNamespace
 
 from textual.app import ComposeResult
@@ -111,18 +113,46 @@ SECTION_PREFIX = "sec-"
 # Avatar footprint (cells) — matches slk: 4 cols × 2 rows, halfblock.
 AVATAR_COLS = 4
 AVATAR_ROWS = 2
-# Placeholder colours for users/bots without a profile image (Slack-ish palette).
-_AVATAR_COLORS = (
-    "#4bbe2e", "#3aa3e3", "#e8912d", "#9e3997",
-    "#3c8c84", "#e7392e", "#674b6f", "#e01563",
+
+
+# A curated, perceptually-distinct name palette (like Slack/IRC clients use). Free
+# HSL sampling clusters in the blue→purple arc and looks muddy; a hand-picked set of
+# vivid, well-separated colours — each legible on dark *and* light themes — reads far
+# better. Ordered so consecutive entries differ strongly (hash collisions aside).
+_NAME_COLORS = (
+    "#e0566c",  # red
+    "#3aa8d8",  # cyan-blue
+    "#e07b3a",  # orange
+    "#5cc06a",  # green
+    "#b06cf0",  # violet
+    "#d9a52b",  # amber
+    "#38b3a0",  # teal
+    "#e8638e",  # pink
+    "#6c8cf0",  # blue
+    "#94c14d",  # lime
+    "#d95fb0",  # magenta
+    "#2bb389",  # emerald
+    "#c46cdf",  # purple
+    "#c2b53a",  # yellow
+    "#4a86e8",  # azure
+    "#b5835a",  # tan
+    "#ff8a5c",  # coral
+    "#7ec8e3",  # sky
 )
+
+
+@lru_cache(maxsize=4096)
+def user_color(user_id: str) -> str:
+    """A deterministic display colour for a user, derived from a stable hash of the
+    id (like the Slack web client), picked from a curated distinct palette."""
+    h = int(hashlib.md5(user_id.encode()).hexdigest(), 16)
+    return _NAME_COLORS[h % len(_NAME_COLORS)]
 
 
 def avatar_placeholder(seed: str) -> str:
     """A 4×2 coloured block for an author with no avatar — keeps the gutter
-    aligned and gives each user/bot a stable colour."""
-    color = _AVATAR_COLORS[sum(map(ord, seed)) % len(_AVATAR_COLORS)]
-    row = f"[on {color}]{' ' * AVATAR_COLS}[/]"
+    aligned and shares the author's deterministic name colour (see user_color)."""
+    row = f"[on {user_color(seed)}]{' ' * AVATAR_COLS}[/]"
     return "\n".join([row] * AVATAR_ROWS)
 
 
@@ -226,6 +256,10 @@ class MessagePane(VerticalScroll, can_focus=True):
         self._custom_render = None
         self._image_render = None
         self._avatar_render = None
+        self._color_names = False
+
+    def set_color_names(self, enabled: bool) -> None:
+        self._color_names = enabled
 
     def set_custom_render(self, fn) -> None:
         self._custom_render = fn
@@ -346,8 +380,9 @@ class MessagePane(VerticalScroll, can_focus=True):
         if resolved == m.user_id and getattr(m, "username", ""):
             resolved = m.username
         author = escape(resolved)
+        author_tag = f"b {user_color(m.user_id)}" if self._color_names else "b"
         text = render_message(m.text, self._name_of, self._custom_render)
-        body = f"[b]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{text}"
+        body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{text}"
         extras = (
             render_extras(m.raw_json, self._name_of, self._custom_render,
                           self._image_render)

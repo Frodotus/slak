@@ -938,6 +938,35 @@ async def test_space_previews_full_res_after_arrow_navigation():
             assert fh.read() == b"FULL"      # full-res original, not the thumbnail
 
 
+async def test_colored_names_wraps_author_in_its_user_color():
+    from slak.ui.widgets import user_color
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("1.0", "U1", "hi")]},
+        users=[RemoteUser("U1", "alice")],
+    )
+    cfg = Config(); cfg.colored_names = True
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"), config=cfg)
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        body = app.query_one("#messages", MessagePane)._body(
+            RemoteMessage("1.0", "U1", "hi"))
+        assert user_color("U1") in body  # author tinted by its deterministic colour
+
+
+async def test_colored_names_off_by_default_leaves_author_uncolored():
+    from slak.ui.widgets import user_color
+    app = make_app()  # default config: colored_names off
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        body = app.query_one("#messages", MessagePane)._body(
+            RemoteMessage("1.0", "U1", "hi"))
+        assert user_color("U1") not in body
+
+
 async def test_image_preview_modal_shows_markup_and_closes_on_space():
     from textual.widgets import Static
     from slak.ui.widgets import ImagePreview

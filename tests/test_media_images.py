@@ -81,6 +81,25 @@ def a_red_png(w=4, h=4) -> bytes:
     return buf.getvalue()
 
 
+def test_avatar_placeholder_uses_the_same_color_as_the_name():
+    from slak.ui.widgets import avatar_placeholder, user_color, AVATAR_COLS, AVATAR_ROWS
+    p = avatar_placeholder("U777")
+    rows = p.split("\n")
+    assert len(rows) == AVATAR_ROWS
+    assert all(f"on {user_color('U777')}" in r for r in rows)  # same hue as the name
+    assert all(" " * AVATAR_COLS in r for r in rows)           # 4-cell block per row
+
+
+def test_user_color_is_deterministic_and_spreads_across_palette():
+    from slak.ui.widgets import user_color, _NAME_COLORS
+    c = user_color("U123")
+    assert c in _NAME_COLORS              # picked from the curated palette
+    assert user_color("U123") == c        # deterministic for an id
+    # many ids spread across most of the palette (good distinctness)
+    colors = {user_color(f"U{i}") for i in range(200)}
+    assert len(colors) >= len(_NAME_COLORS) - 2
+
+
 def test_halfblock_emits_colored_upper_half_cells():
     out = halfblock(a_red_png(), cols=2, rows=1)
     assert "▀" in out

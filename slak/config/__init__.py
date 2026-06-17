@@ -86,6 +86,7 @@ class Config:
     avatars: str = "off"  # on | off — show user avatars beside messages
     emoji_images: str = "on"  # on | off — kitty inline custom-emoji images
     image_preview: str = "terminal"  # terminal | gui — how Space previews an image
+    colored_names: bool = False  # tint each author's name by a hash of their user id
     notify_enabled: bool = True
     notify_on_mention: bool = True
     notify_on_dm: bool = True
@@ -135,6 +136,7 @@ class Config:
             avatars=appearance.get("avatars", "off"),
             emoji_images=appearance.get("emoji_images", "on"),
             image_preview=appearance.get("image_preview", "terminal"),
+            colored_names=bool(appearance.get("colored_names", False)),
             notify_enabled=bool(notif.get("enabled", True)),
             notify_on_mention=bool(notif.get("on_mention", True)),
             notify_on_dm=bool(notif.get("on_dm", True)),
@@ -168,6 +170,7 @@ class Config:
         appearance["avatars"] = self.avatars
         appearance["emoji_images"] = self.emoji_images
         appearance["image_preview"] = self.image_preview
+        appearance["colored_names"] = self.colored_names
         doc["appearance"] = appearance
 
         notif = tomlkit.table()
