@@ -169,6 +169,19 @@ async def test_reopens_last_used_channel_on_restart(tmp_path):
         for _ in range(4):
             await pilot.pause()
         assert second.active_channel == "C2"  # restored last-used channel
+        sidebar = second.query_one("#sidebar", Sidebar)
+        assert sidebar.highlighted_child is not None
+        assert sidebar.highlighted_child.id == "C2"  # and selected in the list
+
+
+async def test_opening_channel_highlights_its_sidebar_row():
+    app = make_app()  # C1, C2
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        await app.open_channel("C2")
+        await pilot.pause()
+        assert app.query_one("#sidebar", Sidebar).highlighted_child.id == "C2"
 
 
 async def test_compose_is_focused_on_launch():

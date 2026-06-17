@@ -214,6 +214,14 @@ class Sidebar(ListView):
         self._channels.append(ch)
         self.append(ListItem(Static(self._label(ch)), id=ch.id))
 
+    def highlight_channel(self, channel_id: str) -> None:
+        """Highlight (select) the row for ``channel_id`` — e.g. the active channel.
+        Does not move keyboard focus; just marks the row and scrolls it into view."""
+        for i, child in enumerate(self.children):
+            if child.id == channel_id:
+                self.index = i
+                return
+
     def set_unread(self, unread_ids: set[str]) -> None:
         self._unread = set(unread_ids)
         # update mounted labels; freshly-appended items repaint via _label on mount

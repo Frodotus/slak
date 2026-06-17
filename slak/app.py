@@ -728,6 +728,7 @@ class PyslkApp(App):
             if record_history:
                 self._nav_for(team).visit(channel_id)
         self._update_header(channel_id)
+        self.query_one("#sidebar", Sidebar).highlight_channel(channel_id)
         # cache-first: render what we have instantly…
         cached = [to_remote_message(m) for m in self.cache.get_messages(channel_id)]
         self.query_one("#messages", MessagePane).set_messages(
