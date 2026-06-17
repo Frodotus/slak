@@ -111,6 +111,19 @@ SECTION_PREFIX = "sec-"
 # Avatar footprint (cells) — matches slk: 4 cols × 2 rows, halfblock.
 AVATAR_COLS = 4
 AVATAR_ROWS = 2
+# Placeholder colours for users/bots without a profile image (Slack-ish palette).
+_AVATAR_COLORS = (
+    "#4bbe2e", "#3aa3e3", "#e8912d", "#9e3997",
+    "#3c8c84", "#e7392e", "#674b6f", "#e01563",
+)
+
+
+def avatar_placeholder(seed: str) -> str:
+    """A 4×2 coloured block for an author with no avatar — keeps the gutter
+    aligned and gives each user/bot a stable colour."""
+    color = _AVATAR_COLORS[sum(map(ord, seed)) % len(_AVATAR_COLORS)]
+    row = f"[on {color}]{' ' * AVATAR_COLS}[/]"
+    return "\n".join([row] * AVATAR_ROWS)
 
 
 class Sidebar(ListView):

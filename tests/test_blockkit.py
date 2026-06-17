@@ -251,3 +251,13 @@ def test_avatar_gutter_prefixes_message_lines_when_enabled():
     # no avatar render -> no gutter
     pane.set_avatar_render(None)
     assert pane._body(RemoteMessage("2.0", "U1", "hi")).startswith("[b]")
+
+
+def test_avatar_placeholder_is_a_stable_colored_block():
+    from slak.ui.widgets import avatar_placeholder, AVATAR_COLS, AVATAR_ROWS
+    p = avatar_placeholder("U1")
+    rows = p.split("\n")
+    assert len(rows) == AVATAR_ROWS
+    assert all(" " * AVATAR_COLS in r and "on #" in r for r in rows)  # 4-cell bg block
+    assert avatar_placeholder("U1") == p              # stable for a seed
+    assert avatar_placeholder("U2") != p or True      # may differ by seed

@@ -97,6 +97,7 @@ from slak.ui.widgets import (
     WorkspaceSwitcher,
     AVATAR_COLS,
     AVATAR_ROWS,
+    avatar_placeholder,
     glyph_for_type,
     set_private_glyph,
 )
@@ -925,7 +926,10 @@ class PyslkApp(App):
             return None
         team = self.router.active_team_id() or ""
         url = self._avatar_urls.get(team, {}).get(user_id)
-        return ai.markup(url) if url else None
+        if url and (markup := ai.markup(url)):
+            return markup
+        # no avatar (or still loading) — a coloured placeholder keeps alignment
+        return avatar_placeholder(user_id)
 
     async def _prefetch_avatars(self) -> None:
         ai = self._avatar_images
