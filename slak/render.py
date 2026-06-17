@@ -44,18 +44,25 @@ _ITALIC = re.compile(r"(?<!\w)_([^_\n]+)_(?!\w)")
 _STRIKE = re.compile(r"~([^~\n]+)~")
 _CODE = re.compile(r"`([^`\n]+)`")
 _CUSTOM = re.compile(r":([a-zA-Z0-9_+\-]+):")
+# sentinel for a coloured mention: \x00<color>\x00<display>\x01 (see render_message)
+_MENTION = re.compile("\x00([^\x00\x01]+)\x00([^\x01]*)\x01")
 
 
 def render_message(
     text: str,
     name_of: Callable[[str], str],
     custom_render: Callable[[str], str | None] | None = None,
+    color_of: Callable[[str], str | None] | None = None,
 ) -> str:
     def user(m: re.Match) -> str:
         name = name_of(m.group(1))
         if name == m.group(1) and m.group(2):
             name = m.group(2)
-        return "@" + name
+        disp = "@" + name
+        # Wrap coloured mentions in sentinels so the markup survives the escape
+        # step below; converted to real tags in step 5b. \x00<color>\x00<text>\x01
+        color = color_of(m.group(1)) if color_of else None
+        return f"\x00{color}\x00{disp}\x01" if color else disp
 
     # 1. entities (operate on the real angle-bracket tokens first)
     text = _USER.sub(user, text)
@@ -74,6 +81,9 @@ def render_message(
     text = _ITALIC.sub(r"[i]\1[/i]", text)
     text = _STRIKE.sub(r"[s]\1[/s]", text)
     text = _CODE.sub(r"[reverse]\1[/reverse]", text)
+    # 5b. mention colour: sentinels -> real colour tags (safe now, post-escape)
+    if color_of:
+        text = _MENTION.sub(r"[\1]\2[/]", text)
     # 6. custom emoji: let the caller decide how to render them (kitty image
     #    placeholder when ready, a chip fallback otherwise, or None to leave text)
     if custom_render:

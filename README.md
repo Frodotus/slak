@@ -55,7 +55,8 @@ full keybinding reference.
 - Optional **user avatars** beside messages (`[appearance] avatars = on`, off by
   default) — rendered as 4×2 half-blocks in a left gutter.
 - Optional **coloured author names** (`[appearance] colored_names = true`, off by
-  default) — each name tinted by a deterministic hash of the user id.
+  default) — each author name and `@mention` tinted by a deterministic hash of the
+  user id.
 - **Local nicknames** — `Ctrl+G` on a message renames its author just for you
   (stored by user id in `[nicknames]`); the nickname shows everywhere that name does.
 - Private channels show a padlock — the single-width `` glyph when an installed

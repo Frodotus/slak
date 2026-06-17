@@ -29,6 +29,18 @@ def test_user_mention_resolved():
     assert r("hi <@U1>") == "hi @Alice"
 
 
+def test_user_mention_coloured_when_color_of_given():
+    color = {"U1": "#aabbcc"}.get   # U1 has a colour, U2 -> None
+    out = render_message("hi <@U1> and <@U2>", name_of, color_of=color)
+    assert "[#aabbcc]@Alice[/]" in out   # U1 tinted by its colour
+    assert "]@Bob" not in out            # U2 left plain
+    assert "@Bob" in out
+
+
+def test_user_mention_plain_without_color_of():
+    assert "[#" not in render_message("hi <@U1>", name_of)  # default: no colour
+
+
 def test_unknown_user_uses_label_then_id():
     assert r("<@U9|carol>") == "@carol"
     assert r("<@U9>") == "@U9"

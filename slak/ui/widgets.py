@@ -381,7 +381,9 @@ class MessagePane(VerticalScroll, can_focus=True):
             resolved = m.username
         author = escape(resolved)
         author_tag = f"b {user_color(m.user_id)}" if self._color_names else "b"
-        text = render_message(m.text, self._name_of, self._custom_render)
+        mention_color = user_color if self._color_names else None
+        text = render_message(m.text, self._name_of, self._custom_render,
+                              color_of=mention_color)
         body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{text}"
         extras = (
             render_extras(m.raw_json, self._name_of, self._custom_render,

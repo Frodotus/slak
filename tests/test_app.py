@@ -1089,6 +1089,24 @@ async def test_colored_names_wraps_author_in_its_user_color():
         assert user_color("U1") in body  # author tinted by its deterministic colour
 
 
+async def test_colored_names_tints_user_mentions_in_body():
+    from slak.ui.widgets import user_color
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("1.0", "U1", "hi <@U2>")]},
+        users=[RemoteUser("U1", "alice"), RemoteUser("U2", "bob")],
+    )
+    cfg = Config(); cfg.colored_names = True
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"), config=cfg)
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        body = app.query_one("#messages", MessagePane)._body(
+            RemoteMessage("1.0", "U1", "hi <@U2>"))
+        assert f"[{user_color('U2')}]@bob[/]" in body  # mention tinted by U2's colour
+
+
 async def test_colored_names_off_by_default_leaves_author_uncolored():
     from slak.ui.widgets import user_color
     app = make_app()  # default config: colored_names off
