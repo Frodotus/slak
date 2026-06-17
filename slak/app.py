@@ -1576,12 +1576,29 @@ class PyslkApp(App):
             return
         customs = list(self._custom_emoji.get(self.router.active_team_id() or "", {}))
         emoji = await self.push_screen_wait(
-            ReactionPicker(self.config.recent_reactions, customs)
+            ReactionPicker(self.config.recent_reactions, customs,
+                           custom_render=self._custom_render,
+                           ensure_custom=self._ensure_custom_emoji)
         )
         if emoji:
             await self._add_reaction(self.active_channel, msg.ts, emoji)
             self.config.record_reaction(emoji)
             self._persist_config()
+
+    async def _ensure_custom_emoji(self, names: list[str]) -> bool:
+        """Transmit custom-emoji images for ``names`` (for the reaction picker).
+
+        Returns whether any newly became ready, so the caller can re-render."""
+        ei = self._emoji_images
+        if ei is None or not ei.enabled:
+            return False
+        customs = self._custom_emoji.get(self.router.active_team_id() or "", {})
+        changed = False
+        for name in names:
+            url = resolve_custom_emoji(name, customs)
+            if url and await ei.ensure(url):
+                changed = True
+        return changed
 
     async def _add_reaction(self, channel: str, ts: str, emoji: str) -> None:
         """Toggle a reaction: add it, or remove it if I've already reacted."""

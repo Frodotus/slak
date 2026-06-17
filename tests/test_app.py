@@ -491,6 +491,35 @@ async def test_reaction_event_updates_displayed_message():
         assert any(r.emoji == "tada" for r in pane._messages[0].reactions)
 
 
+async def test_reaction_picker_renders_custom_emoji_via_custom_render():
+    from textual.widgets import OptionList
+    from slak.ui.widgets import ReactionPicker
+
+    app = make_app()
+    ensured = []
+
+    def fake_custom_render(name):
+        return f"<img:{name}>" if name == "parrot" else None
+
+    async def fake_ensure(names):
+        ensured.append(list(names))
+        return False
+
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        app.push_screen(ReactionPicker(
+            recent=["parrot"], customs=["parrot"],
+            custom_render=fake_custom_render, ensure_custom=fake_ensure))
+        for _ in range(2):
+            await pilot.pause()
+        results = app.screen.query_one("#react-results", OptionList)
+        labels = [str(results.get_option_at_index(i).prompt)
+                  for i in range(results.option_count)]
+        assert any("<img:parrot>" in s for s in labels)  # custom image markup, not plain text
+        assert ensured and "parrot" in ensured[0]         # its image was prefetched
+
+
 async def test_reaction_picker_returns_highlighted_emoji():
     from slak.ui.widgets import ReactionPicker
     app = make_app()

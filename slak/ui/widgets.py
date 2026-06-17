@@ -811,12 +811,18 @@ class ReactionPicker(FuzzyPicker):
     PLACEHOLDER = "React… (type to search, empty = recent)"
 
     def __init__(self, recent: list[str] | None = None,
-                 customs: list[str] | None = None):
+                 customs: list[str] | None = None,
+                 custom_render=None, ensure_custom=None):
         super().__init__([])  # populated dynamically from the query
         self._recent = list(recent or [])
         self._customs = list(customs or [])
+        self._custom_set = set(self._customs)
+        self._custom_render = custom_render      # name -> image markup | chip | None
+        self._ensure_custom = ensure_custom      # async list[str] -> bool (any new)
+        self._query = ""
 
     def _populate(self, query: str) -> None:
+        self._query = query
         q = query.strip().strip(":").lower()
         if not q:
             names = list(self._recent)
@@ -824,14 +830,33 @@ class ReactionPicker(FuzzyPicker):
             names = [n for n, _ in emoji_match(q, limit=40)]
             names += [c for c in self._customs if q in c.lower() and c not in names]
         self._shown = [SimpleNamespace(id=n, name=n) for n in names]
+        self._render_rows()
+        if self._shown:
+            self._results().highlighted = 0  # new query starts at the top
+        # transmit any custom-emoji images for the visible rows, then re-render
+        customs = [n for n in names if n in self._custom_set]
+        if customs and self._ensure_custom is not None:
+            self.run_worker(self._prefetch(customs, query), exclusive=True)
+
+    def _render_rows(self) -> None:
         opts = self._results()
+        prev = opts.highlighted or 0
         opts.clear_options()
-        for n in names:
-            opts.add_option(self._row(n))
-        if names:
-            opts.highlighted = 0
+        for item in self._shown:
+            opts.add_option(self._row(item.name))
+        if self._shown:  # keep the highlight where it was (prefetch re-render)
+            opts.highlighted = min(prev, len(self._shown) - 1)
+
+    async def _prefetch(self, names: list[str], for_query: str) -> None:
+        ready = await self._ensure_custom(names)
+        if ready and self._query == for_query:  # query unchanged: swap chips -> images
+            self._render_rows()
 
     def _row(self, name: str) -> str:
+        if self._custom_render is not None:
+            cm = self._custom_render(name)  # image placeholder / chip, or None if standard
+            if cm:
+                return f"{cm}  :{name}:"
         glyph = emoji_glyph(name)  # glyph, or ':name:' when not a safe unicode glyph
         return f":{name}:" if glyph == f":{name}:" else f"{glyph}  :{name}:"
 
