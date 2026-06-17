@@ -92,6 +92,21 @@ Or with pip (ideally in a virtualenv):
 pip install slak
 ```
 
+### Debian / Ubuntu (.deb)
+
+Build a self-contained package (bundles slak + all deps in a private venv under
+`/usr/lib/slak`; depends only on the matching system `python3.X`):
+
+```bash
+packaging/build-deb.sh                  # -> dist/slak_<version>_<arch>.deb
+sudo dpkg -i dist/slak_*.deb            # or: sudo apt install ./dist/slak_*.deb
+slak
+```
+
+Build it on the same Ubuntu/Debian release you install on — the bundle is tied to
+that release's Python minor version and CPU architecture. Remove with
+`sudo apt remove slak`.
+
 ### Nix
 
 A flake is provided:
