@@ -30,7 +30,7 @@ KEYBINDINGS: list[tuple[str, list[tuple[str, str]]]] = [
         "Global",
         [
             ("Ctrl+P", "Command palette (all actions)"),
-            ("Ctrl+K", "Jump to channel / DM"),
+            ("Ctrl+K", "Find channel / DM (or join a public one)"),
             ("Ctrl+N", "New message (DM / group DM)"),
             ("Alt+1…9", "Switch workspace"),
             ("Ctrl+W", "Workspace switcher (filterable)"),

@@ -64,6 +64,7 @@ class RemoteChannel:
     type: str = "channel"  # channel | private | dm | group_dm
     user: str = ""  # for DMs: the peer's user id (name resolved from it)
     topic: str = ""  # channel topic shown in the header
+    is_member: bool = True  # False for discoverable public channels not yet joined
 
 
 @dataclass
@@ -213,6 +214,10 @@ class SlackClient(Protocol):
 
     async def list_channels(self) -> list[RemoteChannel]: ...
 
+    async def list_all_public_channels(self) -> list[RemoteChannel]: ...
+
+    async def join_channel(self, channel_id: str) -> None: ...
+
     async def history(
         self, channel_id: str, limit: int = 50, oldest: str = ""
     ) -> list[RemoteMessage]: ...
@@ -283,10 +288,13 @@ class FakeSlackClient:
         unreads: list[str] | None = None,
         bots: dict[str, str | RemoteBot] | None = None,
         file_bytes: dict[str, bytes] | None = None,
+        public_channels: list[RemoteChannel] | None = None,
     ):
         self.team_id = team_id
         self.team_name = team_name
         self._channels = channels or []
+        self._public_channels = list(public_channels or [])
+        self.joined: list[str] = []  # ids passed to join_channel (test introspection)
         # store newest-first internally, normalize on read
         self._history: dict[str, list[RemoteMessage]] = history or {}
         self._users = {u.id: u for u in (users or [])}
@@ -311,6 +319,17 @@ class FakeSlackClient:
 
     async def list_channels(self) -> list[RemoteChannel]:
         return list(self._channels)
+
+    async def list_all_public_channels(self) -> list[RemoteChannel]:
+        return list(self._public_channels)
+
+    async def join_channel(self, channel_id: str) -> None:
+        self.joined.append(channel_id)
+        for c in self._public_channels:
+            if c.id == channel_id:
+                c.is_member = True
+                if not any(x.id == channel_id for x in self._channels):
+                    self._channels.append(c)
 
     async def history(
         self, channel_id: str, limit: int = 50, oldest: str = ""

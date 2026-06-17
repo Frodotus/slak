@@ -44,6 +44,44 @@ async def test_attaches_bearer_and_cookie_to_workspace_host():
     assert seen["url"] == "https://acme.slack.com/api/users.conversations"
 
 
+async def test_list_all_public_channels_paginates_and_marks_membership():
+    pages = [
+        {"ok": True,
+         "channels": [{"id": "C1", "name": "general", "is_channel": True, "is_member": True}],
+         "response_metadata": {"next_cursor": "P2"}},
+        {"ok": True, "channels": [
+            {"id": "C2", "name": "random", "is_channel": True, "is_member": False},
+            {"id": "C3", "name": "old", "is_channel": True, "is_archived": True},
+        ]},
+    ]
+    state = {"n": 0, "urls": []}
+
+    def handler(request):
+        state["urls"].append(str(request.url))
+        page = pages[state["n"]]; state["n"] += 1
+        return httpx.Response(200, json=page)
+
+    chans = await make_client(handler).list_all_public_channels()
+    assert {c.id for c in chans} == {"C1", "C2"}          # archived C3 dropped
+    by_id = {c.id: c for c in chans}
+    assert by_id["C1"].is_member is True
+    assert by_id["C2"].is_member is False
+    assert state["urls"][0].endswith("/api/conversations.list")
+
+
+async def test_join_channel_calls_conversations_join():
+    seen = {}
+
+    def handler(request):
+        seen["url"] = str(request.url)
+        seen["body"] = request.content.decode()
+        return httpx.Response(200, json={"ok": True, "channel": {"id": "C9"}})
+
+    await make_client(handler).join_channel("C9")
+    assert seen["url"].endswith("/api/conversations.join")
+    assert "channel=C9" in seen["body"]
+
+
 async def test_list_channels_excludes_closed_dms_and_paginates():
     pages = [
         {"ok": True,

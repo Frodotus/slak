@@ -174,6 +174,32 @@ async def test_reopens_last_used_channel_on_restart(tmp_path):
         assert sidebar.highlighted_child.id == "C2"  # and selected in the list
 
 
+async def test_finder_discovers_and_joins_an_unjoined_public_channel():
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],            # joined
+        history={"C1": [RemoteMessage("1.0", "u", "hi")]},
+        public_channels=[
+            RemoteChannel("C1", "general", is_member=True),
+            RemoteChannel("C9", "announcements", is_member=False),  # not joined
+        ],
+    )
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"), config=Config())
+    async with app.run_test() as pilot:
+        for _ in range(5):  # let the background public-channel load run
+            await pilot.pause()
+        assert app._public_channels.get("T1")  # loaded
+        # simulate the finder returning the unjoined channel, via the join flow
+        ok = await app._join_channel(client, "C9")
+        await pilot.pause()
+        assert ok and "C9" in client.joined            # joined server-side
+        await app.open_channel("C9")
+        await pilot.pause()
+        assert app.active_channel == "C9"
+        # it now appears in the sidebar
+        assert app.query_one("#sidebar", Sidebar).get_child_by_id("C9") is not None
+
+
 async def test_opening_channel_highlights_its_sidebar_row():
     app = make_app()  # C1, C2
     async with app.run_test() as pilot:

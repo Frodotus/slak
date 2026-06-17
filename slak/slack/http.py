@@ -270,6 +270,33 @@ class HttpSlackClient:
                 break
         return channels
 
+    async def list_all_public_channels(self) -> list[RemoteChannel]:
+        # Every public channel in the workspace (joined or not) — for the finder's
+        # discover-and-join. Each carries is_member so the UI/flow can tell which
+        # ones still need joining.
+        channels: list[RemoteChannel] = []
+        cursor = ""
+        while True:
+            params = dict(types="public_channel", exclude_archived="true", limit=1000)
+            if cursor:
+                params["cursor"] = cursor
+            data = await self._call("conversations.list", **params)
+            for c in data.get("channels", []):
+                if c.get("is_archived"):
+                    continue
+                channels.append(RemoteChannel(
+                    id=c["id"], name=c.get("name", ""), type=_channel_type(c),
+                    topic=c.get("topic", {}).get("value", ""),
+                    is_member=bool(c.get("is_member", False)),
+                ))
+            cursor = (data.get("response_metadata") or {}).get("next_cursor") or ""
+            if not cursor:
+                break
+        return channels
+
+    async def join_channel(self, channel_id: str) -> None:
+        await self._call("conversations.join", channel=channel_id)
+
     async def history(
         self, channel_id: str, limit: int = 50, oldest: str = ""
     ) -> list[RemoteMessage]:

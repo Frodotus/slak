@@ -200,6 +200,7 @@ class PyslkApp(App):
         self._handles: dict[str, dict[str, str]] = {}  # team_id -> {handle: display}
         self._avatar_urls: dict[str, dict[str, str]] = {}  # team_id -> {uid: url}
         self._custom_emoji: dict[str, dict[str, str]] = {}  # team_id -> {name: url}
+        self._public_channels: dict[str, list] = {}  # team_id -> all public channels (finder)
         self._emoji_images: EmojiImages | None = None
         self._media_images: MediaImages | None = None
         self._avatar_images: MediaImages | None = None
@@ -480,6 +481,9 @@ class PyslkApp(App):
             self.query_one("#messages", MessagePane).set_messages([], self._name_of)
         self._refresh_sidebar_unread()
         self._update_status()
+        # discover-and-join: load all public channels in the background so the
+        # finder can offer (and join) channels the user hasn't joined yet.
+        self.run_worker(self._load_public_channels(client), exclusive=False)
 
     def _resolve_dm_names(self, team_id: str, channels) -> None:
         """Give DM/MPIM channels human names — peer display name for a 1:1 DM,
@@ -1366,18 +1370,49 @@ class PyslkApp(App):
     def action_find_channel(self) -> None:
         self.run_worker(self._find_channel_flow(), exclusive=False)
 
+    async def _load_public_channels(self, client: SlackClient) -> None:
+        try:
+            self._public_channels[client.team_id] = await client.list_all_public_channels()
+        except Exception as exc:
+            self.log(f"public-channel load failed: {exc!r}")
+
     async def _find_channel_flow(self) -> None:
         client = self.client
         if client is None:
             return
-        channels = await client.list_channels()
-        self._resolve_dm_names(client.team_id, channels)
-        # empty-query order = recency (most-recently-visited first), then the rest
+        joined = await client.list_channels()
+        self._resolve_dm_names(client.team_id, joined)
+        joined_ids = {c.id for c in joined}
+        # joined first, in recency order…
         rank = {cid: i for i, cid in enumerate(self.cache.visit_order(client.team_id))}
-        channels.sort(key=lambda c: rank.get(c.id, len(rank)))
-        channel_id = await self.push_screen_wait(ChannelFinder(channels))
-        if channel_id:
-            await self.open_channel(channel_id)
+        joined.sort(key=lambda c: rank.get(c.id, len(rank)))
+        # …then public channels not yet joined (discover-and-join), alphabetical
+        extra = [c for c in self._public_channels.get(client.team_id, [])
+                 if c.id not in joined_ids]
+        for c in extra:
+            c.is_member = False
+        extra.sort(key=lambda c: c.name.lower())
+        channel_id = await self.push_screen_wait(ChannelFinder(joined + extra))
+        if not channel_id:
+            return
+        if channel_id not in joined_ids:  # picked a channel we haven't joined
+            if not await self._join_channel(client, channel_id):
+                return
+        await self.open_channel(channel_id)
+
+    async def _join_channel(self, client: SlackClient, channel_id: str) -> bool:
+        try:
+            await client.join_channel(channel_id)
+        except Exception as exc:
+            self.notify(f"Could not join channel: {exc}", severity="error")
+            return False
+        ch = next((c for c in self._public_channels.get(client.team_id, [])
+                   if c.id == channel_id), None)
+        if ch is not None:
+            ch.is_member = True
+            self._upsert_channels(client.team_id, [ch])
+            self.query_one("#sidebar", Sidebar).add_channel(ch)
+        return True
 
     def action_search(self) -> None:
         if self.active_channel is None:

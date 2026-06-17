@@ -19,8 +19,9 @@ full keybinding reference.
 
 - Multiple workspaces with concurrent live connections; `Alt+1`…`Alt+9` jump,
   `Ctrl+W` opens a filterable switcher.
-- `Ctrl+K` fuzzy channel/DM finder; `Alt+←`/`Alt+→` walk channel history;
-  `Ctrl+B` toggles the sidebar, `Ctrl+T` the thread panel.
+- `Ctrl+K` fuzzy channel/DM finder — also lists public channels you haven't
+  joined (marked `· join`) and joins one on selection; `Alt+←`/`Alt+→` walk
+  channel history; `Ctrl+B` toggles the sidebar, `Ctrl+T` the thread panel.
 - Cache-first startup: your last context renders instantly while sync runs behind it.
 
 **Messaging**

@@ -782,7 +782,10 @@ class ChannelFinder(FuzzyPicker):
     PLACEHOLDER = "Jump to channel…"
 
     def _label(self, item: RemoteChannel) -> str:
-        return f"{_channel_glyph(item)} {item.name}"
+        label = f"{_channel_glyph(item)} {escape(item.name)}"
+        if getattr(item, "is_member", True) is False:
+            label += "  [dim]· join[/dim]"  # discoverable, not yet joined
+        return label
 
 
 class WorkspaceSwitcher(FuzzyPicker):
