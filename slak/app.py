@@ -89,6 +89,7 @@ from slak.ui.widgets import (
     LinkPicker,
     MultiUserPicker,
     MentionPopup,
+    NicknameModal,
     MessagePane,
     Rail,
     ReactionModal,
@@ -163,6 +164,7 @@ class PyslkApp(App):
         Binding("ctrl+e", "edit_message", show=False, priority=True),
         Binding("ctrl+o", "open_links", show=False),
         Binding("space", "preview_image", show=False),
+        Binding("ctrl+g", "set_nickname", show=False),
         Binding("ctrl+f", "search", show=False),
         Binding("ctrl+shift+f", "search_workspace", show=False),
     ]
@@ -923,6 +925,9 @@ class PyslkApp(App):
             self._refresh_messages()
 
     def _name_of(self, user_id: str) -> str:
+        nick = self.config.nicknames.get(user_id)
+        if nick:
+            return nick  # local nickname overrides the resolved Slack name
         active = self.router.active_team_id() or ""
         return self._names.get(active, {}).get(user_id, user_id)
 
@@ -1599,6 +1604,29 @@ class PyslkApp(App):
         url = await self.push_screen_wait(LinkPicker(links))
         if url:
             self._open_url(url)
+
+    def action_set_nickname(self) -> None:
+        self.run_worker(self._set_nickname_flow(), exclusive=False)
+
+    async def _set_nickname_flow(self) -> None:
+        msg = self.query_one("#messages", MessagePane).selected_message()
+        if msg is None:
+            return
+        uid = msg.user_id
+        active = self.router.active_team_id() or ""
+        current_name = self._names.get(active, {}).get(uid, uid)
+        result = await self.push_screen_wait(
+            NicknameModal(current_name, self.config.nicknames.get(uid, ""))
+        )
+        if result is None:  # cancelled
+            return
+        self._apply_nickname(uid, result)
+
+    def _apply_nickname(self, user_id: str, nickname: str) -> None:
+        self.config.set_nickname(user_id, nickname)
+        self._persist_config()
+        self._refresh_messages()
+        self._update_status()
 
     def action_preview_image(self) -> None:
         self.run_worker(self._preview_image_flow(), exclusive=False)

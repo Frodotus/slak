@@ -47,6 +47,17 @@ def test_colored_names_defaults_off_and_roundtrips():
     assert roundtrip(Config(colored_names=True)).colored_names is True
 
 
+def test_nicknames_roundtrip_and_set_helper():
+    cfg = Config()
+    assert cfg.nicknames == {}
+    cfg.set_nickname("U1", "Boss")
+    cfg.set_nickname("U2", "  Tiny  ")   # trimmed
+    assert roundtrip(cfg).nicknames == {"U1": "Boss", "U2": "Tiny"}
+    cfg.set_nickname("U1", "")            # empty clears
+    assert "U1" not in cfg.nicknames
+    assert roundtrip(cfg).nicknames == {"U2": "Tiny"}
+
+
 def test_dumps_then_loads_preserves_workspaces():
     cfg = Config(
         workspaces=[

@@ -158,6 +158,19 @@ MultiUserPicker { align: center middle; background: $surface-dark 40%; }
 }
 #newmsg-input { border: none; background: $surface-dark; margin: 0 0 1 0; }
 #newmsg-results { height: auto; max-height: 12; background: $surface; }
+NicknameModal { align: center middle; background: $surface-dark 40%; }
+#nickname-box {
+    width: 50%;
+    min-width: 30;
+    max-width: 70;
+    height: auto;
+    background: $surface;
+    border: round $hairline;
+    padding: 1 2;
+}
+#nickname-title { color: $text-muted; padding-bottom: 1; }
+#nickname-input { border: none; background: $surface-dark; padding: 0 1; }
+
 ImagePreview { align: center middle; background: $surface-dark 70%; }
 #image-preview {
     width: auto;

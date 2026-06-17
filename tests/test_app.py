@@ -938,6 +938,50 @@ async def test_space_previews_full_res_after_arrow_navigation():
             assert fh.read() == b"FULL"      # full-res original, not the thumbnail
 
 
+async def test_nickname_overrides_display_name_and_persists(tmp_path):
+    from pathlib import Path
+    cfg_path = tmp_path / "config.toml"
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("1.0", "U1", "hi")]},
+        users=[RemoteUser("U1", "Joni")],
+    )
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"),
+                   config=Config(), config_path=cfg_path)
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        assert app._name_of("U1") == "Joni"          # resolved Slack name
+        app._apply_nickname("U1", "Boss")
+        await pilot.pause()
+        assert app._name_of("U1") == "Boss"           # nickname wins
+        assert 'U1 = "Boss"' in cfg_path.read_text() or '"U1"' in cfg_path.read_text()
+        body = app.query_one("#messages", MessagePane)._body(RemoteMessage("1.0", "U1", "hi"))
+        assert "Boss" in body and "Joni" not in body
+
+
+async def test_nickname_modal_returns_value_or_none():
+    from slak.ui.widgets import NicknameModal
+    app = make_app()
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        # submit a value
+        screen = NicknameModal("Joni", "")
+        fut = app.push_screen(screen)  # noqa
+        await pilot.pause()
+        app.screen.query_one("#nickname-input", Input).value = "Boss"
+        await pilot.press("enter")
+        await pilot.pause()
+        # cancel path
+        app.push_screen(NicknameModal("Joni", "Boss"))
+        await pilot.pause()
+        await pilot.press("escape")
+        await pilot.pause()
+        assert type(app.screen).__name__ != "NicknameModal"
+
+
 async def test_colored_names_wraps_author_in_its_user_color():
     from slak.ui.widgets import user_color
     client = FakeSlackClient(

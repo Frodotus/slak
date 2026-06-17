@@ -63,6 +63,7 @@ KEYBINDINGS: list[tuple[str, list[tuple[str, str]]]] = [
             ("Ctrl+R", "Add reaction"),
             ("Ctrl+E", "Edit your message"),
             ("Ctrl+O", "Open link(s) in the message"),
+            ("Ctrl+G", "Set a local nickname for the author"),
             ("Space", "Preview image attachment(s) full-screen"),
         ],
     ),

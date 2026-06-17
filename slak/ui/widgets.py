@@ -566,6 +566,33 @@ class EditModal(ModalScreen[str]):
         self.dismiss("")
 
 
+class NicknameModal(ModalScreen[str | None]):
+    """Set a local nickname for a user. Dismisses with the typed value (``""``
+    clears it), or ``None`` on cancel."""
+
+    BINDINGS = [Binding("escape", "cancel", show=False)]
+
+    def __init__(self, current_name: str, current_nick: str = ""):
+        super().__init__()
+        self._name = current_name
+        self._nick = current_nick
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="nickname-box"):
+            yield Static(f"Nickname for {escape(self._name)}", id="nickname-title")
+            yield Input(value=self._nick, placeholder="(empty clears)",
+                        id="nickname-input")
+
+    def on_mount(self) -> None:
+        self.query_one("#nickname-input", Input).focus()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.dismiss(event.value)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
 class SearchBar(Input):
     """In-channel search input. Up/Down step through matches (older/newer)."""
 

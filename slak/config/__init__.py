@@ -95,6 +95,7 @@ class Config:
     mcp_socket_path: str | None = None
     sections: dict[str, list[str]] = field(default_factory=dict)
     workspaces: list[WorkspaceConfig] = field(default_factory=list)
+    nicknames: dict[str, str] = field(default_factory=dict)  # user_id -> local nickname
 
     @classmethod
     def loads(cls, text: str) -> "Config":
@@ -145,6 +146,7 @@ class Config:
             mcp_socket_path=mcp.get("socket_path"),
             sections=_parse_sections(data.get("sections", {})),
             workspaces=workspaces,
+            nicknames={str(k): str(v) for k, v in data.get("nicknames", {}).items()},
         )
 
     def dumps(self) -> str:
@@ -189,6 +191,12 @@ class Config:
 
         if self.theme_overrides:
             doc["theme"] = self.theme_overrides
+
+        if self.nicknames:
+            nick_table = tomlkit.table()
+            for uid, nick in self.nicknames.items():
+                nick_table[uid] = nick
+            doc["nicknames"] = nick_table
 
         if self.sections:
             sec_table = tomlkit.table()
@@ -245,6 +253,14 @@ class Config:
     def set_default_theme(self, theme: str) -> None:
         """Set the global default theme for workspaces without their own."""
         self.theme = theme
+
+    def set_nickname(self, user_id: str, nickname: str) -> None:
+        """Set (or, with an empty value, clear) a local nickname for a user."""
+        nickname = nickname.strip()
+        if nickname:
+            self.nicknames[user_id] = nickname
+        else:
+            self.nicknames.pop(user_id, None)
 
     def uses_slack_sections(self, team_id: str) -> bool:
         """Whether to use Slack-native sections for a workspace (per-ws → global)."""
