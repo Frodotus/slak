@@ -1616,14 +1616,18 @@ class PyslkApp(App):
         self.notify("Opening image preview…")
         try:
             data = await self._fetch_image(url)
+            debug(f"[preview] fetched {len(data)} bytes from {url[:80]}")
             if not data:
-                raise ValueError("empty image")
+                raise ValueError("no image data returned")
             path = _write_preview_file(url, data)
+            debug(f"[preview] wrote {path}")
         except Exception as exc:
-            debug(f"preview fetch failed: {exc!r}")
-            self.notify("Could not download image; opening in browser", severity="warning")
+            debug(f"[preview] download failed: {exc!r}")
+            self.notify(f"Could not download image ({exc}); opening in browser",
+                        severity="warning")
             self._open_url(url)
             return
+        debug(f"[preview] opening {path} with the OS viewer")
         self._open_file(str(path))
 
     def action_edit_message(self) -> None:

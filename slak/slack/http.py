@@ -212,6 +212,7 @@ class HttpSlackClient:
             cookies={"d": token.cookie},
             transport=transport,
             timeout=30.0,
+            follow_redirects=True,  # url_private originals 302 to a CDN
         )
         self._events: asyncio.Queue[Event] = asyncio.Queue()
         self._ws = None  # active RTM websocket (set while connected)
