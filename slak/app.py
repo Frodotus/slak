@@ -1394,7 +1394,15 @@ class PyslkApp(App):
         msg = self.query_one("#messages", MessagePane).selected_message()
         if msg is None or self.active_channel is None:
             return
-        await self.open_thread(self.active_channel, msg.thread_ts or msg.ts)
+        ts = msg.thread_ts or msg.ts
+        panel = self.query_one("#thread", ThreadPanel)
+        if (panel.display and self.open_thread_channel == self.active_channel
+                and self.open_thread_ts == ts):
+            # thread already open for this message — Enter moves into the reply box
+            self.query_one("#thread-compose", Input).focus()
+            return
+        # first Enter just opens the thread; focus stays on the message
+        await self.open_thread(self.active_channel, ts, focus=False)
 
     async def open_thread(
         self, channel_id: str, thread_ts: str, focus: bool = True
