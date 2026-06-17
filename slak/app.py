@@ -106,7 +106,7 @@ from slak.ui.widgets import (
     set_private_glyph,
 )
 from slak.fonts import use_nerd_glyphs
-from rich.markup import escape
+from slak.markup import escape
 from slak.ui.widgets import THREADS_ROW_ID
 from slak.sections import layout as section_layout, order_native_sections
 from slak.mcp import build_snapshot, default_socket_path, message_dict, serve as serve_mcp
@@ -1011,7 +1011,8 @@ class PyslkApp(App):
         team = client.team_name if client else ""
         name = self._channel_names.get(self.active_channel or "", "")
         seg = self._presence_segment(self.router.active_team_id() or "")
-        self.query_one("#status", Static).update(f"#{name}   {team}   {seg}")
+        self.query_one("#status", Static).update(
+            f"#{escape(name)}   {escape(team)}   {seg}")
 
     def _presence_segment(self, team_id: str) -> str:
         presence, dnd_end = self._presence.get(team_id, ("auto", 0.0))

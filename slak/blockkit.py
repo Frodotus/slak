@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 from typing import Callable
 
-from rich.markup import escape
+from slak.markup import escape
 
 from slak.render import render_message
 
@@ -181,7 +181,7 @@ def _control_label(elem: dict) -> str:
 def _accessory(acc: dict) -> str:
     if acc.get("type") == "image":
         return f"🖼 {escape(acc.get('alt_text', 'image'))}"
-    return f"[{escape(_control_label(acc))}]"
+    return f"\\[{escape(_control_label(acc))}]"
 
 
 def _render_blocks(
@@ -216,7 +216,7 @@ def _render_blocks(
                              image_render)
                     )
                 else:
-                    lines.append(f"[dim][{escape(_control_label(acc))}][/dim]")
+                    lines.append(f"[dim]\\[{escape(_control_label(acc))}][/dim]")
                     interactive = True
         elif typ == "context":
             text_parts, image_lines = [], []

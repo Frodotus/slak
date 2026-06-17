@@ -33,7 +33,7 @@ from textual.widgets import Input, ListItem, ListView, OptionList, Static
 
 from textual.screen import ModalScreen
 
-from rich.markup import escape
+from slak.markup import escape
 
 from slak.blockkit import render_extras
 from slak.emoji import emoji_glyph
@@ -199,9 +199,10 @@ class Sidebar(ListView):
 
     def _label(self, ch: RemoteChannel) -> str:
         glyph = _channel_glyph(ch)
+        name = escape(ch.name)
         if ch.id in self._unread:
-            return f"[b]{glyph} {ch.name}  ●[/]"
-        return f"{glyph} {ch.name}"
+            return f"[b]{glyph} {name}  ●[/]"
+        return f"{glyph} {name}"
 
 
 class MessagePane(VerticalScroll, can_focus=True):
@@ -789,7 +790,7 @@ class MultiUserPicker(ModalScreen):
 
     def _label(self, user) -> str:
         mark = "✓" if user.id in self._selected else " "
-        return f"[{mark}] {user.name}"
+        return f"\\[{mark}] {escape(user.name)}"
 
     def _populate(self, query: str, keep: int | None = None) -> None:
         self._shown = rank_by_name(self._all, query)

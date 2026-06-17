@@ -29,7 +29,7 @@ import html
 import re
 from collections.abc import Callable
 
-from rich.markup import escape
+from slak.markup import escape
 
 from slak.emoji import emojize
 

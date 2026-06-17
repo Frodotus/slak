@@ -58,9 +58,20 @@ def test_standard_emoji_rendered_custom_left_as_text():
 
 
 def test_markup_injection_is_neutralised():
-    # a message that looks like Rich markup must not be interpreted
+    # a message that looks like markup must not be interpreted — every '[' is
+    # backslash-escaped (Textual content markup treats '[' as a tag opener, and
+    # even '[0]' / '[$1]' would be mis-parsed)
     assert r("[b]hax[/b]") == "\\[b]hax\\[/b]"
-    assert r("arr[0] = x") == "arr[0] = x"  # harmless brackets left alone
+    assert r("arr[0] = x") == "arr\\[0] = x"
+
+
+def test_brackets_parse_cleanly_as_textual_markup():
+    # the real-world crash: SQL with [$1::DATE … $2::UUID] must render, not raise
+    from textual.content import Content
+
+    out = render_message("set due=[$1::DATE, id=$2::UUID]", name_of)
+    content = Content.from_markup(out)  # must not raise MarkupError
+    assert content.plain == "set due=[$1::DATE, id=$2::UUID]"
 
 
 def test_bold_and_italic_become_rich_markup():
