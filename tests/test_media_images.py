@@ -54,6 +54,18 @@ async def test_media_images_transmits_and_returns_placeholder():
     assert mi.markup("http://x/other.png") is None  # not transmitted
 
 
+async def test_media_images_ensure_honours_per_call_size_box():
+    emitted = []
+
+    async def fetch(url):
+        return a_png(80, 40)  # 2:1 image
+
+    mi = MediaImages("kitty", fetch, cache_dir="/tmp/slak-test-prevbox",
+                     emit=emitted.append, max_cols=24, max_rows=10)
+    await mi.ensure("http://x/big.png", max_cols=60, max_rows=40)
+    assert "c=60" in emitted[0]  # placement uses the larger preview box, not 24
+
+
 async def test_media_images_disabled_when_protocol_off():
     async def fetch(url):
         return a_png()

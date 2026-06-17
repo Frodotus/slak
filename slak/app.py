@@ -85,6 +85,7 @@ from slak.ui.widgets import (
     ComposeInput,
     EditModal,
     HelpModal,
+    ImagePreview,
     LinkPicker,
     MultiUserPicker,
     MentionPopup,
@@ -199,6 +200,7 @@ class PyslkApp(App):
         self._emoji_images: EmojiImages | None = None
         self._media_images: MediaImages | None = None
         self._avatar_images: MediaImages | None = None
+        self._preview_images: MediaImages | None = None
         self._resolving: set[tuple[str, str]] = set()
         self.open_thread_ts: str = ""
         self.open_thread_channel: str = ""
@@ -812,6 +814,12 @@ class PyslkApp(App):
             media_proto, self._fetch_image,
             Path.home() / ".cache" / "slak" / "avatars", self._emit_raw,
             id_base=200_000, max_cols=AVATAR_COLS, max_rows=AVATAR_ROWS,
+        )
+        # full-screen image preview (sized to the screen at open time)
+        self._preview_images = MediaImages(
+            media_proto, self._fetch_image,
+            Path.home() / ".cache" / "slak" / "previews", self._emit_raw,
+            id_base=300_000,
         )
         debug(f"init emoji images: protocol={proto} enabled={self._emoji_images.enabled}")
 
@@ -1607,7 +1615,34 @@ class PyslkApp(App):
             url = await self.push_screen_wait(LinkPicker(urls))
             if not url:
                 return
-        await self._open_image_preview(url)
+        if self.config.image_preview == "gui":
+            await self._open_image_preview(url)
+        else:
+            await self._terminal_preview(url)
+
+    async def _terminal_preview(self, url: str) -> None:
+        # Render the image inside the terminal (kitty/half-block) — the escapes
+        # travel over SSH to the local terminal, unlike a remote GUI window.
+        mi = self._preview_images
+        if mi is None or not mi.enabled:
+            self.notify("In-terminal preview needs a graphics terminal "
+                        "(set image_preview = \"gui\" to use an external viewer)",
+                        severity="warning")
+            return
+        self.notify("Loading image preview…")
+        # size to the screen, leaving room for the caption + modal padding
+        cols = max(10, self.size.width - 6)
+        rows = max(5, self.size.height - 6)
+        try:
+            await mi.ensure(url, max_cols=cols, max_rows=rows)
+        except Exception as exc:
+            debug(f"[preview] terminal render failed: {exc!r}")
+        markup = mi.markup(url)
+        if not markup:
+            self.notify("Could not load image", severity="warning")
+            return
+        caption = os.path.basename(urllib.parse.urlparse(url).path)
+        self.push_screen(ImagePreview(markup, caption))
 
     async def _open_image_preview(self, url: str) -> None:
         # Slack `url_private` images need slak's auth, so fetch them ourselves and

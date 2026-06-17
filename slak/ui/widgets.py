@@ -861,6 +861,34 @@ class ThemePicker(FuzzyPicker):
             self.PLACEHOLDER = placeholder
 
 
+class ImagePreview(ModalScreen):
+    """Full-screen in-terminal image preview (``Space``).
+
+    Renders an already-prepared image markup (kitty placeholder or half-block
+    cells) centered in a modal. Works over SSH because it's just terminal
+    graphics escapes — no external viewer. ``Space``/``Esc``/``q`` close it."""
+
+    BINDINGS = [
+        Binding("escape", "close", show=False),
+        Binding("space", "close", show=False),
+        Binding("q", "close", show=False),
+    ]
+
+    def __init__(self, markup: str, caption: str = "") -> None:
+        super().__init__()
+        self._markup = markup
+        self._caption = caption
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="image-preview"):
+            yield Static(self._markup, id="image-preview-body")
+            yield Static(f"[dim]{escape(self._caption)}  ·  Space/Esc to close[/dim]",
+                         id="image-preview-caption")
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
 class HelpModal(ModalScreen):
     """Keyboard-shortcut help (``F1``, overview §10/§11).
 

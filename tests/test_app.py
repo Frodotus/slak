@@ -874,16 +874,18 @@ async def test_channel_header_shows_name_and_topic():
         assert "Daily standup" in header
 
 
-def _image_app(file_opener, raw_json="", history=None, file_bytes=None):
+def _image_app(file_opener, raw_json="", history=None, file_bytes=None,
+               image_preview="gui"):
     client = FakeSlackClient(
         team_id="T1", team_name="Acme",
         channels=[RemoteChannel("C1", "general")],
         history=history or {"C1": [RemoteMessage("1.0", "u", "look", raw_json=raw_json)]},
         file_bytes=file_bytes,
     )
+    cfg = Config(); cfg.image_preview = image_preview
     return PyslkApp(
         router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"),
-        config=Config(), file_opener=file_opener,
+        config=cfg, file_opener=file_opener,
     )
 
 
@@ -919,7 +921,8 @@ async def test_space_previews_full_res_after_arrow_navigation():
         RemoteMessage("2.0", "u", "later text"),
     ]}
     app = _image_app(opened.append, history=history,
-                     file_bytes={"https://x/full.png": b"FULL", "https://x/t360.png": b"THUMB"})
+                     file_bytes={"https://x/full.png": b"FULL", "https://x/t360.png": b"THUMB"},
+                     image_preview="gui")
     async with app.run_test() as pilot:
         for _ in range(4):
             await pilot.pause()
@@ -933,6 +936,71 @@ async def test_space_previews_full_res_after_arrow_navigation():
         assert len(opened) == 1
         with open(opened[0], "rb") as fh:
             assert fh.read() == b"FULL"      # full-res original, not the thumbnail
+
+
+async def test_image_preview_modal_shows_markup_and_closes_on_space():
+    from textual.widgets import Static
+    from slak.ui.widgets import ImagePreview
+
+    app = make_app()
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        await app.push_screen(ImagePreview("IMG-MARKUP", caption="cat.png"))
+        for _ in range(2):
+            await pilot.pause()
+        assert type(app.screen).__name__ == "ImagePreview"
+        body = app.screen.query_one("#image-preview-body", Static)
+        assert "IMG-MARKUP" in str(body.render())
+        await pilot.press("space")          # Space closes the preview
+        await pilot.pause()
+        assert type(app.screen).__name__ != "ImagePreview"
+
+
+async def test_gui_preview_mode_downloads_and_opens_file():
+    import os
+    opened = []
+    raw = json.dumps({"files": [{"mimetype": "image/png",
+                                 "url_private": "https://x/full.png"}]})
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("1.0", "u", "look", raw_json=raw)]},
+        file_bytes={"https://x/full.png": b"PNGDATA"},
+    )
+    cfg = Config(); cfg.image_preview = "gui"
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"),
+                   config=cfg, file_opener=opened.append)
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        app.query_one("#messages", MessagePane).focus()
+        await pilot.press("space")
+        for _ in range(4):
+            await pilot.pause()
+        assert len(opened) == 1 and opened[0].endswith(".png")
+
+
+async def test_terminal_preview_mode_does_not_download_a_file():
+    opened = []
+    raw = json.dumps({"files": [{"mimetype": "image/png",
+                                 "url_private": "https://x/full.png"}]})
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("1.0", "u", "look", raw_json=raw)]},
+        file_bytes={"https://x/full.png": b"PNGDATA"},
+    )
+    cfg = Config()  # default image_preview == "terminal"
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"),
+                   config=cfg, file_opener=opened.append)
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        app.query_one("#messages", MessagePane).focus()
+        await app._preview_image_flow()
+        await pilot.pause()
+        assert opened == []  # terminal mode never shells out to an external viewer
 
 
 async def test_space_with_no_image_does_not_open_a_preview():

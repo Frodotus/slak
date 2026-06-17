@@ -158,6 +158,20 @@ MultiUserPicker { align: center middle; background: $surface-dark 40%; }
 }
 #newmsg-input { border: none; background: $surface-dark; margin: 0 0 1 0; }
 #newmsg-results { height: auto; max-height: 12; background: $surface; }
+ImagePreview { align: center middle; background: $surface-dark 70%; }
+#image-preview {
+    width: auto;
+    max-width: 96%;
+    height: auto;
+    max-height: 96%;
+    background: $surface;
+    border: round $hairline;
+    padding: 1 2;
+    align: center middle;
+}
+#image-preview-body { width: auto; height: auto; content-align: center middle; }
+#image-preview-caption { width: 100%; content-align: center middle; padding-top: 1; }
+
 HelpModal { align: center middle; background: $surface-dark 40%; }
 #help {
     width: 60%;

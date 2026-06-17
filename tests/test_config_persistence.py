@@ -37,6 +37,11 @@ def test_dumps_then_loads_preserves_core_fields():
     assert out.notify_keywords == ["ping", "release"]
 
 
+def test_image_preview_defaults_to_terminal_and_roundtrips():
+    assert Config().image_preview == "terminal"
+    assert roundtrip(Config(image_preview="gui")).image_preview == "gui"
+
+
 def test_dumps_then_loads_preserves_workspaces():
     cfg = Config(
         workspaces=[

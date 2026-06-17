@@ -85,6 +85,7 @@ class Config:
     nerd_font: str = "auto"  # auto | on | off — private-channel padlock glyph
     avatars: str = "off"  # on | off — show user avatars beside messages
     emoji_images: str = "on"  # on | off — kitty inline custom-emoji images
+    image_preview: str = "terminal"  # terminal | gui — how Space previews an image
     notify_enabled: bool = True
     notify_on_mention: bool = True
     notify_on_dm: bool = True
@@ -133,6 +134,7 @@ class Config:
             nerd_font=appearance.get("nerd_font", "auto"),
             avatars=appearance.get("avatars", "off"),
             emoji_images=appearance.get("emoji_images", "on"),
+            image_preview=appearance.get("image_preview", "terminal"),
             notify_enabled=bool(notif.get("enabled", True)),
             notify_on_mention=bool(notif.get("on_mention", True)),
             notify_on_dm=bool(notif.get("on_dm", True)),
@@ -165,6 +167,7 @@ class Config:
         appearance["nerd_font"] = self.nerd_font
         appearance["avatars"] = self.avatars
         appearance["emoji_images"] = self.emoji_images
+        appearance["image_preview"] = self.image_preview
         doc["appearance"] = appearance
 
         notif = tomlkit.table()

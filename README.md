@@ -46,6 +46,9 @@ full keybinding reference.
   legacy attachments (headers, sections, fields, context, dividers, controls).
 - Inline images for files and attachments — kitty graphics on kitty, `▀` half-blocks
   on any truecolor terminal.
+- `Space` previews the selected message's image full-screen. Default is an in-terminal
+  preview (works over SSH); set `[appearance] image_preview = gui` to open it in an
+  external viewer on the local machine instead.
 - ~70-slot color themes (12 built-in incl. terminal-following `ansi-dark`/`ansi-light`,
   plus `~/.config/slak/themes/*.toml` and `[theme]` overrides), switched live with
   `Ctrl+Y`; the sidebar is auto-kept contrasting (CIELAB).
