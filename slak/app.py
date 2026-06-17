@@ -1299,11 +1299,9 @@ class PyslkApp(App):
             # Esc in the threads view returns focus to the sidebar (spec 03 §8)
             self.query_one("#sidebar", Sidebar).focus()
             return
-        panel = self.query_one("#thread", ThreadPanel)
-        if panel.display:
-            # Esc closes an open thread panel first
-            panel.display = False
-            self.query_one("#compose", Input).focus()
+        if self.query_one("#thread", ThreadPanel).display:
+            # Esc closes an open thread panel and returns focus to the message
+            self._close_thread_panel()
             return
         self.query_one("#search", SearchBar).display = False
         self.query_one("#messages", MessagePane).remove_class("-searching")
@@ -1435,14 +1433,17 @@ class PyslkApp(App):
     def action_toggle_thread(self) -> None:
         panel = self.query_one("#thread", ThreadPanel)
         if panel.display:
-            panel.display = False
-            self.action_focus_compose()
+            self._close_thread_panel()
         elif self.open_thread_ts:
             panel.display = True
 
     def action_close_thread(self) -> None:
+        self._close_thread_panel()
+
+    def _close_thread_panel(self) -> None:
+        # hide the panel and return focus to the message it was opened from
         self.query_one("#thread", ThreadPanel).display = False
-        self.action_focus_compose()
+        self.query_one("#messages", MessagePane).focus()
 
     def action_mark_unread(self) -> None:
         if self.active_channel is None:

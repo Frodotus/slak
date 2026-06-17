@@ -386,7 +386,7 @@ async def test_esc_closes_open_thread_panel():
         await pilot.press("escape")
         await pilot.pause()
         assert app.query_one("#thread").display is False  # closed by Esc
-        assert app.focused.id == "compose"
+        assert app.focused.id == "messages"  # focus returns to the message
 
 
 async def test_opening_thread_keeps_focus_on_message_then_enters_reply():
@@ -405,6 +405,23 @@ async def test_opening_thread_keeps_focus_on_message_then_enters_reply():
         await app.action_open_thread()  # second Enter: into the reply box
         await pilot.pause()
         assert app.focused.id == "thread-compose"
+
+
+async def test_closing_thread_returns_focus_to_the_message():
+    app = make_thread_app()
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        messages = app.query_one("#messages", MessagePane)
+        messages.focus()
+        await pilot.pause()
+        await app.action_open_thread()  # opens, focus stays on the message
+        for _ in range(3):
+            await pilot.pause()
+        app.action_close_thread()       # Esc closes the panel
+        await pilot.pause()
+        assert app.query_one("#thread").display is False
+        assert app.focused is messages  # focus did not jump to the compose box
 
 
 async def test_replying_in_thread_posts_threaded_and_appends():
