@@ -16,3 +16,16 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[dev]"
       - run: pytest -q
+
+  # Guard the Nix flake against breakage (dep bumps, hash drift, textual moving
+  # off 8.2.7 in nixpkgs). Builds the package and the emoji-data-python dep.
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: cachix/install-nix-action@v30
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - run: nix flake check
+      - run: nix build .#slak --no-link --print-out-paths

@@ -47,17 +47,53 @@ jobs:
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
 
+  # Self-contained .deb per Ubuntu LTS. The bundle is tied to that release's
+  # Python minor + arch (Pillow ships a compiled extension), so one job per image.
+  deb:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { image: "ubuntu:24.04", codename: "noble" }
+          - { image: "ubuntu:22.04", codename: "jammy" }
+    container: ${{ matrix.image }}
+    steps:
+      - name: Install build tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3 python3-venv python3-pip binutils dpkg-dev git ca-certificates
+      - uses: actions/checkout@v6
+      - name: Build .deb
+        run: |
+          packaging/build-deb.sh
+          # disambiguate the per-release artifact (same arch, different python dep)
+          v="${GITHUB_REF_NAME#v}"
+          mv dist/slak_*.deb "dist/slak_${v}_${{ matrix.codename }}_amd64.deb"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deb-${{ matrix.codename }}
+          path: dist/*.deb
+
   github-release:
-    needs: publish  # only after the PyPI upload succeeds
+    needs: [publish, deb]  # after PyPI upload and the .deb builds
     runs-on: ubuntu-latest
     permissions:
       contents: write  # create the GitHub Release
     steps:
       - uses: actions/checkout@v6
-      - name: Create GitHub Release with auto-generated notes
+      - name: Collect .deb artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: deb-*
+          merge-multiple: true
+          path: debs/
+      - name: Create GitHub Release with notes + .deb assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
           gh release create "$GITHUB_REF_NAME"
           --title "slak ${GITHUB_REF_NAME#v}"
           --verify-tag --generate-notes
+          debs/*.deb
