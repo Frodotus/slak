@@ -874,49 +874,52 @@ async def test_channel_header_shows_name_and_topic():
         assert "Daily standup" in header
 
 
-def _image_app(url_opener, raw_json=""):
+def _image_app(file_opener, raw_json="", history=None, file_bytes=None):
     client = FakeSlackClient(
         team_id="T1", team_name="Acme",
         channels=[RemoteChannel("C1", "general")],
-        history={"C1": [RemoteMessage("1.0", "u", "look", raw_json=raw_json)]},
+        history=history or {"C1": [RemoteMessage("1.0", "u", "look", raw_json=raw_json)]},
+        file_bytes=file_bytes,
     )
     return PyslkApp(
         router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"),
-        config=Config(), url_opener=url_opener,
+        config=Config(), file_opener=file_opener,
     )
 
 
-async def test_space_previews_single_image_attachment():
+async def test_space_downloads_and_opens_image_attachment():
+    import os
     opened = []
     raw = json.dumps({"files": [{"mimetype": "image/png",
                                  "url_private": "https://x/full.png"}]})
-    app = _image_app(opened.append, raw_json=raw)
+    app = _image_app(opened.append, raw_json=raw, file_bytes={"https://x/full.png": b"PNGDATA"})
     async with app.run_test() as pilot:
         for _ in range(4):
             await pilot.pause()
         app.query_one("#messages", MessagePane).focus()
         await pilot.pause()
         await pilot.press("space")
-        for _ in range(3):
+        for _ in range(4):
             await pilot.pause()
-        assert opened == ["https://x/full.png"]
+        assert len(opened) == 1
+        path = opened[0]
+        assert path.endswith(".png")           # opened a local file, not the URL
+        assert os.path.exists(path)
+        with open(path, "rb") as fh:
+            assert fh.read() == b"PNGDATA"      # authenticated download, written to disk
 
 
-async def test_space_previews_image_after_arrow_navigation():
+async def test_space_previews_full_res_after_arrow_navigation():
     opened = []
     raw = json.dumps({"files": [{"mimetype": "image/png",
                                  "thumb_360": "https://x/t360.png",
                                  "url_private": "https://x/full.png"}]})
-    client = FakeSlackClient(
-        team_id="T1", team_name="Acme",
-        channels=[RemoteChannel("C1", "general")],
-        history={"C1": [
-            RemoteMessage("1.0", "u", "pic", raw_json=raw),  # image, not last
-            RemoteMessage("2.0", "u", "later text"),
-        ]},
-    )
-    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"),
-                   config=Config(), url_opener=opened.append)
+    history = {"C1": [
+        RemoteMessage("1.0", "u", "pic", raw_json=raw),  # image, not last
+        RemoteMessage("2.0", "u", "later text"),
+    ]}
+    app = _image_app(opened.append, history=history,
+                     file_bytes={"https://x/full.png": b"FULL", "https://x/t360.png": b"THUMB"})
     async with app.run_test() as pilot:
         for _ in range(4):
             await pilot.pause()
@@ -925,9 +928,11 @@ async def test_space_previews_image_after_arrow_navigation():
         await pilot.pause()
         assert app.query_one("#messages", MessagePane).selected_message().ts == "1.0"
         await pilot.press("space")
-        for _ in range(3):
+        for _ in range(4):
             await pilot.pause()
-        assert opened == ["https://x/full.png"]  # full-res, not the thumbnail
+        assert len(opened) == 1
+        with open(opened[0], "rb") as fh:
+            assert fh.read() == b"FULL"      # full-res original, not the thumbnail
 
 
 async def test_space_with_no_image_does_not_open_a_preview():

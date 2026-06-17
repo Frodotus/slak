@@ -24,10 +24,13 @@ a pointer.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import sys
+import tempfile
 import time
+import urllib.parse
 import webbrowser
 from pathlib import Path
 from types import SimpleNamespace
@@ -110,6 +113,31 @@ from slak import themes
 from slak.workspace import WorkspaceRouter
 
 
+def _open_with_os(path: str) -> None:
+    """Open a local file with the platform's default application."""
+    import subprocess
+
+    if sys.platform == "darwin":
+        cmd = ["open", path]
+    elif os.name == "nt":
+        os.startfile(path)  # type: ignore[attr-defined]
+        return
+    else:
+        cmd = ["xdg-open", path]
+    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def _write_preview_file(url: str, data: bytes) -> Path:
+    """Cache a downloaded image under a stable per-URL name, return its path."""
+    ext = os.path.splitext(urllib.parse.urlparse(url).path)[1] or ".png"
+    name = hashlib.sha1(url.encode()).hexdigest()[:16] + ext
+    out = Path(tempfile.gettempdir()) / "slak-previews"
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / name
+    path.write_bytes(data)
+    return path
+
+
 class PyslkApp(App):
     CSS_PATH = Path(__file__).parent / "ui" / "styles" / "app.tcss"
     TITLE = "slak"
@@ -145,6 +173,7 @@ class PyslkApp(App):
         config: Config,
         notifier: Notifier | None = None,
         url_opener: Callable[[str], object] | None = None,
+        file_opener: Callable[[str], object] | None = None,
         config_path: Path | None = None,
     ):
         # Set before super().__init__(): Textual reads get_css_variables() during
@@ -156,6 +185,7 @@ class PyslkApp(App):
         self.cache = cache
         self._notifier = notifier or DesktopNotifier()
         self._open_url = url_opener or webbrowser.open
+        self._open_file = file_opener or _open_with_os
         self._config_path = config_path
         self.active_channel: str | None = None
         self._nav: dict[str, NavHistory] = {}  # team_id -> channel back/forward
@@ -1572,11 +1602,29 @@ class PyslkApp(App):
             self.notify("No image in the selected message")
             return
         if len(urls) == 1:
-            self._open_url(urls[0])
-            return
-        url = await self.push_screen_wait(LinkPicker(urls))
-        if url:
+            url = urls[0]
+        else:
+            url = await self.push_screen_wait(LinkPicker(urls))
+            if not url:
+                return
+        await self._open_image_preview(url)
+
+    async def _open_image_preview(self, url: str) -> None:
+        # Slack `url_private` images need slak's auth, so fetch them ourselves and
+        # open the local file with the OS image viewer — a bare browser hit on the
+        # URL would 403 without the workspace session cookie.
+        self.notify("Opening image preview…")
+        try:
+            data = await self._fetch_image(url)
+            if not data:
+                raise ValueError("empty image")
+            path = _write_preview_file(url, data)
+        except Exception as exc:
+            debug(f"preview fetch failed: {exc!r}")
+            self.notify("Could not download image; opening in browser", severity="warning")
             self._open_url(url)
+            return
+        self._open_file(str(path))
 
     def action_edit_message(self) -> None:
         self.run_worker(self._edit_flow(), exclusive=False)

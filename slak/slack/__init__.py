@@ -282,6 +282,7 @@ class FakeSlackClient:
         stars: list[str] | None = None,
         unreads: list[str] | None = None,
         bots: dict[str, str | RemoteBot] | None = None,
+        file_bytes: dict[str, bytes] | None = None,
     ):
         self.team_id = team_id
         self.team_name = team_name
@@ -298,6 +299,7 @@ class FakeSlackClient:
             bid: b if isinstance(b, RemoteBot) else RemoteBot(name=b)
             for bid, b in (bots or {}).items()
         }
+        self._file_bytes = dict(file_bytes or {})
         self._events: asyncio.Queue[Event] = asyncio.Queue()
         self._self_user = "Uself"
         self.self_user_id = "Uself"
@@ -421,6 +423,9 @@ class FakeSlackClient:
 
     async def bot_info(self, bot_id: str) -> RemoteBot | None:
         return self._bots.get(bot_id)
+
+    async def fetch_bytes(self, url: str) -> bytes:
+        return self._file_bytes.get(url, b"")
 
     async def mark(self, channel_id: str, ts: str) -> None:
         self.marks.append((channel_id, ts))
