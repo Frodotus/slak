@@ -16,7 +16,25 @@
 
 import json
 
-from slak.blockkit import image_urls, render_extras
+from slak.blockkit import image_urls, preview_image_urls, render_extras
+
+
+def test_preview_image_urls_prefers_full_resolution_files():
+    raw = json.dumps({
+        "files": [{"mimetype": "image/png", "thumb_360": "t/360.png",
+                   "url_private": "f/full.png"}],
+        "blocks": [{"type": "image", "image_url": "b/pic.png"}],
+    })
+    urls = preview_image_urls(raw)
+    assert "f/full.png" in urls       # the full-resolution original, not the thumb
+    assert "t/360.png" not in urls
+    assert "b/pic.png" in urls
+
+
+def test_preview_image_urls_ignores_non_image_files():
+    raw = json.dumps({"files": [{"mimetype": "application/pdf",
+                                 "url_private": "f/doc.pdf"}]})
+    assert preview_image_urls(raw) == []
 
 
 def joined(raw: dict) -> str:

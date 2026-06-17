@@ -124,6 +124,31 @@ def _file_image_url(f) -> str | None:
     return f.get("thumb_360") or f.get("thumb_480") or f.get("url_private")
 
 
+def _file_preview_url(f) -> str | None:
+    """The full-resolution image URL for a Slack file (for previews), or None."""
+    if not isinstance(f, dict) or not str(f.get("mimetype", "")).startswith("image/"):
+        return None
+    return f.get("url_private") or f.get("thumb_480") or f.get("thumb_360")
+
+
+def preview_image_urls(raw_json: str) -> list[str]:
+    """Full-resolution image URLs of a message, for opening a preview.
+
+    Like :func:`image_urls`, but prefers each file's full-size ``url_private``
+    original over the inline thumbnail."""
+    thumbs = {u: True for u in image_urls(raw_json)}
+    try:
+        data = json.loads(raw_json) if raw_json else {}
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    files = {_file_image_url(f): _file_preview_url(f) for f in data.get("files") or []}
+    urls = [files.get(u, u) for u in thumbs]  # upgrade file thumbs to full-res
+    seen: set[str] = set()
+    return [u for u in urls if u and not (u in seen or seen.add(u))]
+
+
 def _img(url: str, label: str, image_render: ImageRender) -> str:
     """A rendered inline image placeholder if ready, else a labelled fallback."""
     if image_render and url:

@@ -55,6 +55,7 @@ class PyslkCommands(Provider):
             ("Edit message", "edit_message", "Edit your selected message"),
             ("Delete message", "delete_message", "Delete your selected message"),
             ("Open link(s)", "open_links", "Open URLs from the selected message"),
+            ("Preview image", "preview_image", "Open image attachment(s) from the selected message"),
             ("Mark unread from here", "mark_unread", "Mark the selected message and newer unread"),
             ("Open thread", "open_thread", "Open the thread for the selected message"),
             ("Close thread", "close_thread", "Hide the thread panel"),

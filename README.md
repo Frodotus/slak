@@ -28,7 +28,7 @@ full keybinding reference.
 - Send, **edit** (`Ctrl+E`), and delete messages; reactions (`Ctrl+R`); threads with
   a follow-the-cursor reply panel.
 - `Ctrl+N` new-message composer (DM and group DM); `@`/`:` mention & emoji
-  autocomplete; `Ctrl+O` opens link(s) in a message.
+  autocomplete; `Ctrl+O` opens link(s) in a message; `Space` previews image attachments.
 - In-channel (`Ctrl+F`) and workspace-wide (`Ctrl+Shift+F`) search.
 - Typing indicators, both directions.
 

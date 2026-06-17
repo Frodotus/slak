@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import json
+
 from textual.widgets import Input
 
 from slak.app import PyslkApp
@@ -870,3 +872,44 @@ async def test_channel_header_shows_name_and_topic():
         header = str(app.query_one("#header", Static).render())
         assert "general" in header
         assert "Daily standup" in header
+
+
+def _image_app(url_opener, raw_json=""):
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("1.0", "u", "look", raw_json=raw_json)]},
+    )
+    return PyslkApp(
+        router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"),
+        config=Config(), url_opener=url_opener,
+    )
+
+
+async def test_space_previews_single_image_attachment():
+    opened = []
+    raw = json.dumps({"files": [{"mimetype": "image/png",
+                                 "url_private": "https://x/full.png"}]})
+    app = _image_app(opened.append, raw_json=raw)
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        app.query_one("#messages", MessagePane).focus()
+        await pilot.pause()
+        await pilot.press("space")
+        for _ in range(3):
+            await pilot.pause()
+        assert opened == ["https://x/full.png"]
+
+
+async def test_space_with_no_image_does_not_open_a_preview():
+    opened = []
+    app = _image_app(opened.append, raw_json="")  # plain text message, no files
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        app.query_one("#messages", MessagePane).focus()
+        await pilot.pause()
+        await app._preview_image_flow()
+        await pilot.pause()
+        assert opened == []

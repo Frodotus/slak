@@ -41,7 +41,7 @@ from textual.widgets import Input, ListView, Static
 from slak.cache import Cache, Channel, ThreadSubscription
 from slak.debuglog import debug
 from slak.emoji import resolve_custom_emoji
-from slak.blockkit import image_urls
+from slak.blockkit import image_urls, preview_image_urls
 from slak.images import EmojiImages, MediaImages, detect_protocol, tmux_passthrough
 from slak.links import extract_links
 from slak.nav import NavHistory
@@ -133,6 +133,7 @@ class PyslkApp(App):
         Binding("ctrl+n", "new_message", show=False),
         Binding("ctrl+e", "edit_message", show=False, priority=True),
         Binding("ctrl+o", "open_links", show=False),
+        Binding("space", "preview_image", show=False),
         Binding("ctrl+f", "search", show=False),
         Binding("ctrl+shift+f", "search_workspace", show=False),
     ]
@@ -1556,6 +1557,24 @@ class PyslkApp(App):
             self._open_url(links[0])
             return
         url = await self.push_screen_wait(LinkPicker(links))
+        if url:
+            self._open_url(url)
+
+    def action_preview_image(self) -> None:
+        self.run_worker(self._preview_image_flow(), exclusive=False)
+
+    async def _preview_image_flow(self) -> None:
+        msg = self.query_one("#messages", MessagePane).selected_message()
+        if msg is None:
+            return
+        urls = preview_image_urls(getattr(msg, "raw_json", "") or "")
+        if not urls:
+            self.notify("No image in the selected message")
+            return
+        if len(urls) == 1:
+            self._open_url(urls[0])
+            return
+        url = await self.push_screen_wait(LinkPicker(urls))
         if url:
             self._open_url(url)
 
