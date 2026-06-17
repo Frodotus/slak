@@ -94,18 +94,27 @@ pip install slak
 
 ### Debian / Ubuntu (.deb)
 
-Build a self-contained package (bundles slak + all deps in a private venv under
-`/usr/lib/slak`; depends only on the matching system `python3.X`):
+**Requires Ubuntu 24.04 (Noble) or newer** — slak needs Python ≥ 3.12, which
+24.04 is the first Ubuntu LTS to ship (22.04 has 3.10 and is not supported).
+
+A pre-built `.deb` is attached to each [release](https://github.com/Frodotus/slak/releases);
+it bundles slak + all deps in a private venv under `/usr/lib/slak` and depends only
+on `python3.12` (apt pulls it automatically):
 
 ```bash
-packaging/build-deb.sh                  # -> dist/slak_<version>_<arch>.deb
-sudo dpkg -i dist/slak_*.deb            # or: sudo apt install ./dist/slak_*.deb
+sudo apt install ./slak_<version>_noble_amd64.deb
 slak
 ```
 
-Build it on the same Ubuntu/Debian release you install on — the bundle is tied to
-that release's Python minor version and CPU architecture. Remove with
-`sudo apt remove slak`.
+To build one yourself (run on the same release you install on — the bundle is tied
+to that release's Python minor version and CPU architecture):
+
+```bash
+packaging/build-deb.sh                  # -> dist/slak_<version>_<arch>.deb
+sudo apt install ./dist/slak_*.deb
+```
+
+Remove with `sudo apt remove slak`.
 
 ### Nix
 
