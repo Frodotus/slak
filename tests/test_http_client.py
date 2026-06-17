@@ -40,7 +40,32 @@ async def test_attaches_bearer_and_cookie_to_workspace_host():
     await make_client(handler).list_channels()
     assert seen["auth"] == "Bearer xoxc-tok"
     assert "d=dcookie" in seen["cookie"]
-    assert seen["url"] == "https://acme.slack.com/api/conversations.list"
+    # users.conversations returns only joined channels (not every public channel)
+    assert seen["url"] == "https://acme.slack.com/api/users.conversations"
+
+
+async def test_list_channels_excludes_closed_dms_and_paginates():
+    pages = [
+        {"ok": True,
+         "channels": [{"id": "C1", "name": "general", "is_channel": True}],
+         "response_metadata": {"next_cursor": "PAGE2"}},
+        {"ok": True, "channels": [
+            {"id": "D1", "is_im": True, "user": "U9", "is_open": True},
+            {"id": "D2", "is_im": True, "user": "U8", "is_open": False},  # hidden
+        ]},
+    ]
+    state = {"n": 0, "bodies": []}
+
+    def handler(request):
+        state["bodies"].append(request.content.decode())
+        page = pages[state["n"]]
+        state["n"] += 1
+        return httpx.Response(200, json=page)
+
+    chans = await make_client(handler).list_channels()
+    assert [c.id for c in chans] == ["C1", "D1"]   # closed DM D2 excluded
+    assert state["n"] == 2                          # followed the cursor
+    assert "cursor=PAGE2" in state["bodies"][1]
 
 
 async def test_list_channels_maps_types():

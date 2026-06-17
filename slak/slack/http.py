@@ -239,21 +239,36 @@ class HttpSlackClient:
         return data
 
     async def list_channels(self) -> list[RemoteChannel]:
-        data = await self._call(
-            "conversations.list",
-            types="public_channel,private_channel,im,mpim",
-            exclude_archived="true",
-            limit=1000,
-        )
-        return [
-            RemoteChannel(
-                id=c["id"], name=c.get("name", ""), type=_channel_type(c),
-                user=c.get("user", ""),
-                topic=c.get("topic", {}).get("value", ""),
+        # users.conversations returns only the conversations the user has *joined*
+        # (and their open DMs) — i.e. the sidebar. conversations.list would return
+        # every public channel in the workspace plus closed DMs ("hidden" ones).
+        channels: list[RemoteChannel] = []
+        cursor = ""
+        while True:
+            params = dict(
+                types="public_channel,private_channel,im,mpim",
+                exclude_archived="true",
+                limit=1000,
             )
-            for c in data.get("channels", [])
-            if not c.get("is_archived")  # belt-and-suspenders vs the API param
-        ]
+            if cursor:
+                params["cursor"] = cursor
+            data = await self._call("users.conversations", **params)
+            for c in data.get("channels", []):
+                if c.get("is_archived"):
+                    continue
+                ctype = _channel_type(c)
+                # drop DMs/MPDMs the user has closed (hidden from the sidebar)
+                if ctype in ("dm", "group_dm") and c.get("is_open") is False:
+                    continue
+                channels.append(RemoteChannel(
+                    id=c["id"], name=c.get("name", ""), type=ctype,
+                    user=c.get("user", ""),
+                    topic=c.get("topic", {}).get("value", ""),
+                ))
+            cursor = (data.get("response_metadata") or {}).get("next_cursor") or ""
+            if not cursor:
+                break
+        return channels
 
     async def history(
         self, channel_id: str, limit: int = 50, oldest: str = ""
