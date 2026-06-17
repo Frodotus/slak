@@ -128,19 +128,31 @@ nix profile install github:Frodotus/slak
 nix develop                       # dev shell with deps + pytest
 ```
 
-Either way you get a `slak` command:
+Either way you get a `slak` command.
+
+## First run
+
+Just run it:
 
 ```bash
-slak --help
+slak
 ```
 
-## Use a real workspace
+On the first launch (no workspace configured yet) slak opens a short **setup
+wizard** that walks you through copying your Slack browser session — an `xoxc-…`
+token and the `d` cookie — from `https://app.slack.com` via DevTools. Credentials
+are stored locally and sent only to Slack. After that, `slak` connects to your
+workspace automatically.
 
 ```bash
-slak --add-workspace      # paste your browser xoxc token + d cookie
-slak                      # connects to it (falls back to demo if no token)
-slak --demo               # always use the seeded demo workspace
+slak                  # your workspace (runs the setup wizard on first launch)
+slak --add-workspace  # run the wizard again to add another workspace
+slak --list-workspaces
+slak --demo           # explore a seeded demo workspace (no account needed)
 ```
+
+(`slak` with no workspace in a non-interactive shell — CI/cron — prints setup
+instructions and exits rather than prompting; use `--demo` there.)
 
 ## Develop
 
@@ -148,7 +160,7 @@ slak --demo               # always use the seeded demo workspace
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 
-python -m slak                      # run against a seeded demo workspace
+python -m slak --demo               # run against a seeded demo workspace
 textual run --dev slak/dev.py       # run with live CSS hot-reload
 textual console                      # (separate terminal) stream logs
 pytest                               # run the test suite
