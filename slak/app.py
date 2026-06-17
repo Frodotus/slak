@@ -910,15 +910,20 @@ class PyslkApp(App):
             return
         self._resolving.add(key)
         try:
-            name = await client.bot_info(bot_id)
+            bot = await client.bot_info(bot_id)
         except Exception:
-            name = ""
+            bot = None
         finally:
             self._resolving.discard(key)
-        if name:
-            names[bot_id] = name
-            if client is self.client:
-                self._refresh_messages()
+        if bot is None:
+            return
+        names[bot_id] = bot.name
+        if bot.avatar:
+            self._avatar_urls.setdefault(client.team_id, {})[bot_id] = bot.avatar
+        if client is self.client:
+            if bot.avatar:
+                self.run_worker(self._prefetch_avatars(), exclusive=False)
+            self._refresh_messages()
 
     def _avatar_render(self, user_id: str):
         ai = self._avatar_images

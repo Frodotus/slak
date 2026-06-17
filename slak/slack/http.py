@@ -53,6 +53,7 @@ from slak.slack import (
     PresenceChanged,
     Reaction,
     ReactionUpdated,
+    RemoteBot,
     RemoteChannel,
     RemoteMessage,
     RemoteUser,
@@ -420,12 +421,18 @@ class HttpSlackClient:
         member = data.get("user")
         return _user_from_member(member) if member else None
 
-    async def bot_info(self, bot_id: str) -> str:
+    async def bot_info(self, bot_id: str) -> RemoteBot | None:
         try:
             data = await self._call("bots.info", bot=bot_id)
         except SlackError:
-            return ""
-        return data.get("bot", {}).get("name", "")
+            return None
+        bot = data.get("bot", {})
+        name = bot.get("name", "")
+        if not name:
+            return None
+        icons = bot.get("icons") or {}
+        avatar = icons.get("image_72") or icons.get("image_48") or icons.get("image_36") or ""
+        return RemoteBot(name=name, avatar=avatar)
 
     async def next_event(self) -> Event:
         return await self._events.get()

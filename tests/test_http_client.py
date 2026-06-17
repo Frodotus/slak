@@ -368,10 +368,15 @@ async def test_history_captures_bot_username():
     assert msgs[0].username == "GitHub"
 
 
-async def test_bot_info_returns_name():
+async def test_bot_info_returns_name_and_avatar():
     def handler(request):
-        return httpx.Response(200, json={"ok": True, "bot": {"id": "B1", "name": "CI Bot"}})
-    assert await make_client(handler).bot_info("B1") == "CI Bot"
+        return httpx.Response(200, json={"ok": True, "bot": {
+            "id": "B1", "name": "CI Bot",
+            "icons": {"image_36": "u/36.png", "image_72": "u/72.png"},
+        }})
+    bot = await make_client(handler).bot_info("B1")
+    assert bot.name == "CI Bot"
+    assert bot.avatar == "u/72.png"  # prefers the larger icon
 
 
 async def test_list_channels_excludes_archived():

@@ -101,6 +101,14 @@ class RemoteUser:
 
 
 @dataclass
+class RemoteBot:
+    """A bot/app author resolved via ``bots.info`` (name + icon for avatars)."""
+
+    name: str
+    avatar: str = ""  # icons.image_72 › image_48 › image_36
+
+
+@dataclass
 class ThreadSub:
     """A subscribed thread from ``subscriptions.thread.list`` (spec 02 §7)."""
 
@@ -221,7 +229,7 @@ class SlackClient(Protocol):
 
     async def user_info(self, user_id: str) -> RemoteUser | None: ...
 
-    async def bot_info(self, bot_id: str) -> str: ...
+    async def bot_info(self, bot_id: str) -> RemoteBot | None: ...
 
     async def add_reaction(self, channel_id: str, ts: str, emoji: str) -> None: ...
 
@@ -273,7 +281,7 @@ class FakeSlackClient:
         sections: list["RemoteSection"] | None = None,
         stars: list[str] | None = None,
         unreads: list[str] | None = None,
-        bots: dict[str, str] | None = None,
+        bots: dict[str, str | RemoteBot] | None = None,
     ):
         self.team_id = team_id
         self.team_name = team_name
@@ -286,7 +294,10 @@ class FakeSlackClient:
         self._sections = list(sections or [])
         self._stars = list(stars or [])
         self._unreads = list(unreads or [])
-        self._bots = dict(bots or {})
+        self._bots = {
+            bid: b if isinstance(b, RemoteBot) else RemoteBot(name=b)
+            for bid, b in (bots or {}).items()
+        }
         self._events: asyncio.Queue[Event] = asyncio.Queue()
         self._self_user = "Uself"
         self.self_user_id = "Uself"
@@ -408,8 +419,8 @@ class FakeSlackClient:
     async def user_info(self, user_id: str) -> RemoteUser | None:
         return self._users.get(user_id)
 
-    async def bot_info(self, bot_id: str) -> str:
-        return self._bots.get(bot_id, "")
+    async def bot_info(self, bot_id: str) -> RemoteBot | None:
+        return self._bots.get(bot_id)
 
     async def mark(self, channel_id: str, ts: str) -> None:
         self.marks.append((channel_id, ts))

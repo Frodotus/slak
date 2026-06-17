@@ -824,6 +824,21 @@ async def test_bot_id_message_resolves_name_via_bots_info():
         assert app._name_of("B1") == "CIBot"  # resolved via bots.info
 
 
+async def test_bot_avatar_url_is_captured_from_bots_info():
+    from slak.slack import RemoteBot
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("1.0", "B1", "deploy ok")]},
+        bots={"B1": RemoteBot(name="CIBot", avatar="https://x/bot72.png")},
+    )
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"), config=Config())
+    async with app.run_test() as pilot:
+        for _ in range(5):
+            await pilot.pause()
+        assert app._avatar_urls.get("T1", {}).get("B1") == "https://x/bot72.png"
+
+
 async def test_channel_header_shows_name_and_topic():
     from textual.widgets import Static
     client = FakeSlackClient(
