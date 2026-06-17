@@ -46,6 +46,8 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true  # tolerate re-runs of an already-published version
 
   # Self-contained .deb per Ubuntu LTS. The bundle is tied to that release's
   # Python minor + arch (Pillow ships a compiled extension), so one job per image.
@@ -53,10 +55,12 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false  # one Ubuntu failing shouldn't cancel the others
       matrix:
+        # slak needs Python >= 3.12, so only releases that ship it qualify
+        # (Ubuntu 24.04 = 3.12; 22.04 has 3.10 and is unsupported).
         include:
           - { image: "ubuntu:24.04", codename: "noble" }
-          - { image: "ubuntu:22.04", codename: "jammy" }
     container: ${{ matrix.image }}
     steps:
       - name: Install build tools

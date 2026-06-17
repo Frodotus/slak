@@ -14,11 +14,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
 
-version="$(python3 - <<'PY'
-import tomllib
-print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])
-PY
-)"
+# grep (not tomllib) so this works on older Pythons (e.g. Ubuntu 22.04 / 3.10)
+version="$(grep -m1 '^version = ' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')"
 pyver="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"  # e.g. 3.14
 pyfull="$(python3 -c 'import platform; print(platform.python_version())')"
 arch="$(dpkg --print-architecture)"
