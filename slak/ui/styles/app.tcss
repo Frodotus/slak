@@ -62,6 +62,14 @@ Screen {
 #header-rule { height: 1; color: $hairline; background: $bg; }
 
 #messages { padding: 1 2; background: $bg; }
+/* message links: visibly a link (accent + underline), brighter on hover */
+#messages, #thread-messages {
+    link-color: $accent;
+    link-style: underline;
+    link-color-hover: $accent;
+    link-style-hover: bold underline;
+    link-background-hover: $surface;
+}
 .message { padding: 0 0 1 0; }
 /* selection shows when the pane is focused or while searching (borderless: tint + bar) */
 #messages:focus .message.-selected,

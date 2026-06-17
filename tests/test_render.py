@@ -55,9 +55,16 @@ def test_broadcasts():
     assert r("<!subteam^S1|@team> ping") == "@team ping"
 
 
-def test_links_use_label_or_url():
-    assert r("<https://x.io|the site>") == "the site"
-    assert r("<https://x.io>") == "https://x.io"
+def test_links_render_as_clickable_hyperlinks():
+    # OSC 8 hyperlink markup (URL quoted); look (underline/colour) is CSS link-*
+    assert r("<https://x.io|the site>") == '[link="https://x.io"]the site[/link]'
+    assert r("<https://x.io>") == '[link="https://x.io"]https://x.io[/link]'
+
+
+def test_link_url_keeps_query_after_html_unescape():
+    # Slack escapes & in URLs; the link target must use the real &
+    assert r("<https://x.io?a=1&amp;b=2>") == \
+        '[link="https://x.io?a=1&b=2"]https://x.io?a=1&b=2[/link]'
 
 
 def test_html_entities_unescaped():

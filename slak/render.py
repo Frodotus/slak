@@ -46,6 +46,8 @@ _CODE = re.compile(r"`([^`\n]+)`")
 _CUSTOM = re.compile(r":([a-zA-Z0-9_+\-]+):")
 # sentinel for a coloured mention: \x00<color>\x00<display>\x01 (see render_message)
 _MENTION = re.compile("\x00([^\x00\x01]+)\x00([^\x01]*)\x01")
+# sentinel for a hyperlink: \x02<url>\x03<label>\x04 (so the markup survives escape)
+_LINKTAG = re.compile("\x02([^\x02\x03\x04]+)\x03([^\x04]*)\x04")
 
 
 def render_message(
@@ -69,7 +71,13 @@ def render_message(
     text = _CHAN.sub(lambda m: "#" + (m.group(2) or m.group(1)), text)
     text = _SUBTEAM.sub(lambda m: m.group(2) or "@team", text)
     text = _BROADCAST.sub(lambda m: "@" + (m.group(2) or m.group(1)), text)
-    text = _LINK.sub(lambda m: m.group(2) or m.group(1).replace("mailto:", ""), text)
+    # links -> sentinels now, real [link=…] markup after escaping (step 5c)
+    def link(m: re.Match) -> str:
+        url = m.group(1)
+        label = m.group(2) or url.replace("mailto:", "")
+        return f"\x02{url}\x03{label}\x04"
+
+    text = _LINK.sub(link, text)
     # 2. unescape Slack's HTML entities, now that tokens are gone
     text = html.unescape(text)
     # 3. emoji shortcodes -> glyphs (custom/unknown left as :name:)
@@ -84,6 +92,11 @@ def render_message(
     # 5b. mention colour: sentinels -> real colour tags (safe now, post-escape)
     if color_of:
         text = _MENTION.sub(r"[\1]\2[/]", text)
+    # 5c. links: sentinels -> OSC 8 hyperlink markup (clickable in the terminal).
+    # Visual styling (colour/underline) is set via CSS link-* on the message panes,
+    # which Textual applies to link spans. The URL must be quoted — Textual's parser
+    # trips on the ':' in '://' otherwise.
+    text = _LINKTAG.sub(r'[link="\1"]\2[/link]', text)
     # 6. custom emoji: let the caller decide how to render them (kitty image
     #    placeholder when ready, a chip fallback otherwise, or None to leave text)
     if custom_render:
