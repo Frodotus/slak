@@ -1,7 +1,7 @@
 [project]
 name = "slak"
 version = "0.1.3"
-description = "A modern, non-modal terminal Slack client built on Textual"
+description = "A terminal Slack client built on Textual"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "Toni Leino" }]

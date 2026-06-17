@@ -16,10 +16,10 @@
 
 """The slak Textual application (multi-workspace shell).
 
-Non-modal: the compose box is focused on launch, so you just type. Tab moves
-focus; the command palette (Ctrl+P) is the action surface; Alt+1..9 switch
-workspaces. The active workspace is read from the router at call time, so
-switching is just moving a pointer.
+The compose box is focused on launch, so you just type. Tab moves focus; the
+command palette (Ctrl+P) is the action surface; Alt+1..9 switch workspaces. The
+active workspace is read from the router at call time, so switching is just moving
+a pointer.
 """
 
 from __future__ import annotations

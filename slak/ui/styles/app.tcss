@@ -1,6 +1,7 @@
 /* ---------------------------------------------------------------------------
- * slak base chrome — modern & BORDERLESS.
- * Separation comes from background surfaces + padding, never box borders.
+ * slak base chrome.
+ * Base panels separate via background-surface shades + padding (no box borders);
+ * only floating overlays/modals get a soft rounded border (see further down).
  * The colour tokens ($bg, $surface, $accent, …) are supplied at runtime by the
  * colour-theme layer (slak/themes.py via PyslkApp.get_css_variables); switching
  * a theme swaps just those vars and restyles everything. Structure below only

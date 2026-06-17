@@ -3,17 +3,17 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License](https://img.shields.io/badge/license-GPLv3-blue)
 
-A modern, **non-modal** terminal Slack client built on [Textual](https://textual.textualize.io/).
+A terminal Slack client built on [Textual](https://textual.textualize.io/).
 
 > Unofficial. Uses Slack's internal browser protocol and may violate Slack's TOS.
 > Not affiliated with Slack Technologies, LLC.
 
 ## Features
 
-**Non-modal & keyboard-first.** Borderless Textual UI — workspace rail, channel
-sidebar, message pane, compose. The compose box is focused on launch, so you just
-start typing; there are no vim-style modes. `Tab` cycles focus, `Ctrl+P` opens the
-command palette (every action), and `F1` shows the full keybinding reference.
+**Keyboard-first.** Borderless Textual UI — workspace rail, channel sidebar, message
+pane, compose. The compose box is focused on launch, so you just start typing. `Tab`
+cycles focus, `Ctrl+P` opens the command palette (every action), and `F1` shows the
+full keybinding reference.
 
 **Workspaces & navigation**
 
