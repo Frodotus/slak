@@ -1500,6 +1500,13 @@ class PyslkApp(App):
         # first Enter just opens the thread; focus stays on the message
         await self.open_thread(self.active_channel, ts, focus=False)
 
+    async def action_open_thread_at(self, ts: str) -> None:
+        """Open the thread for a specific message — used by the clickable reply
+        indicator (``💬 N replies``) in the message body."""
+        if self.active_channel is not None:
+            self.query_one("#messages", MessagePane).select_by_ts(ts)
+            await self.open_thread(self.active_channel, ts, focus=False)
+
     async def open_thread(
         self, channel_id: str, thread_ts: str, focus: bool = True
     ) -> None:

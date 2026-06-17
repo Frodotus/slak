@@ -249,6 +249,22 @@ class Sidebar(ListView):
         return f"{glyph} {name}"
 
 
+class MessageWidget(Static):
+    """One message row. Clicking it selects that message."""
+
+    class Clicked(Message):
+        def __init__(self, ts: str) -> None:
+            self.ts = ts
+            super().__init__()
+
+    def __init__(self, *args, ts: str = "", **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.ts = ts
+
+    def on_click(self) -> None:
+        self.post_message(self.Clicked(self.ts))
+
+
 class MessagePane(VerticalScroll, can_focus=True):
     """Scrollable, selectable list of messages for the active channel.
 
@@ -288,7 +304,9 @@ class MessagePane(VerticalScroll, can_focus=True):
         self.remove_children()
         self._name_of = name_of
         self._messages = list(messages)
-        self._widgets = [Static(self._body(m), classes="message") for m in messages]
+        self._widgets = [
+            MessageWidget(self._body(m), classes="message", ts=m.ts) for m in messages
+        ]
         for w in self._widgets:
             self.mount(w)
         self._selected = len(self._messages) - 1
@@ -298,7 +316,7 @@ class MessagePane(VerticalScroll, can_focus=True):
     def add_message(self, m: RemoteMessage, name_of=str) -> None:
         self._name_of = name_of
         follow = self._selected == len(self._messages) - 1
-        w = Static(self._body(m), classes="message")
+        w = MessageWidget(self._body(m), classes="message", ts=m.ts)
         self._messages.append(m)
         self._widgets.append(w)
         self.mount(w)
@@ -355,6 +373,11 @@ class MessagePane(VerticalScroll, can_focus=True):
             return "0"
         return self._messages[self._selected - 1].ts
 
+    def on_message_widget_clicked(self, event: "MessageWidget.Clicked") -> None:
+        event.stop()
+        self.focus()  # so the selection highlight shows
+        self.select_by_ts(event.ts)
+
     def select_by_ts(self, ts: str) -> bool:
         for i, m in enumerate(self._messages):
             if m.ts == ts:
@@ -409,7 +432,9 @@ class MessagePane(VerticalScroll, can_focus=True):
             body += "\n" + "\n".join(extras)
         if getattr(m, "reply_count", 0):
             n = m.reply_count
-            body += f"\n[$accent]💬 {n} repl{'y' if n == 1 else 'ies'}[/]"
+            tts = m.thread_ts or m.ts  # the thread is keyed by the parent's ts
+            plural = "y" if n == 1 else "ies"
+            body += f"\n[@click=app.open_thread_at('{tts}')]💬 {n} repl{plural}[/]"
         if m.reactions:
             # dim only the count — the emoji's own markup (esp. a kitty image
             # placeholder, whose fg colour encodes the image id) must be untouched

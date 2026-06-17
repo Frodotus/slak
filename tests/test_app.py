@@ -235,6 +235,50 @@ async def test_switching_workspace_remembers_it_for_next_launch(tmp_path):
         assert "T2" in cfg_path.read_text()         # persisted to disk
 
 
+async def test_clicking_a_message_selects_it():
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("1.0", "u", "first"),
+                        RemoteMessage("2.0", "u", "second")]},
+    )
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"), config=Config())
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        pane = app.query_one("#messages", MessagePane)
+        assert pane.selected_message().ts == "2.0"   # defaults to newest
+        await pilot.click(pane._widgets[0])          # click the first message
+        await pilot.pause()
+        assert pane.selected_message().ts == "1.0"   # now selected
+        assert app.focused is pane                   # clicking focuses the pane
+
+
+async def test_reply_indicator_is_a_clickable_open_thread_action():
+    from slak.ui.widgets import MessagePane
+    app = make_app()
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        pane = app.query_one("#messages", MessagePane)
+        body = pane._body(RemoteMessage("9.0", "u", "parent", reply_count=3))
+        assert "@click=app.open_thread_at('9.0')" in body
+        assert "💬 3 replies" in body
+
+
+async def test_action_open_thread_at_opens_that_thread():
+    app = make_thread_app()
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        ts = app.query_one("#messages", MessagePane)._messages[0].ts
+        await app.action_open_thread_at(ts)
+        for _ in range(3):
+            await pilot.pause()
+        assert app.query_one("#thread").display is True
+        assert app.open_thread_ts == ts
+
+
 async def test_opening_channel_highlights_its_sidebar_row():
     app = make_app()  # C1, C2
     async with app.run_test() as pilot:
