@@ -27,7 +27,11 @@ root="$stage/$pkg"
 prefix="$root/usr/lib/slak"      # the bundled venv lives here
 
 echo ">> building venv (python $pyfull, $arch)"
-python3 -m venv "$prefix"
+# Use the version-specific interpreter (python3.X), so the venv's bin/python3
+# symlink resolves to /usr/bin/python3.X — exactly the `Depends: python3.X` we
+# declare. Building with the `python3` meta would point at /usr/bin/python3,
+# which a clean target (with only python3.X installed) doesn't have.
+"python$pyver" -m venv "$prefix"
 "$prefix/bin/pip" install --quiet --upgrade pip
 "$prefix/bin/pip" install --quiet .
 
