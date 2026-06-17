@@ -12,6 +12,10 @@ venv/
 .ruff_cache/
 .mypy_cache/
 
+# Nix
+result
+result-*
+
 # Runtime / local
 slak-debug.log
 *.db

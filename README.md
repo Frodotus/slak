@@ -92,6 +92,16 @@ Or with pip (ideally in a virtualenv):
 pip install slak
 ```
 
+### Nix
+
+A flake is provided:
+
+```bash
+nix run github:Frodotus/slak     # run without installing
+nix profile install github:Frodotus/slak
+nix develop                       # dev shell with deps + pytest
+```
+
 Either way you get a `slak` command:
 
 ```bash
