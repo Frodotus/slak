@@ -200,6 +200,22 @@ async def test_finder_discovers_and_joins_an_unjoined_public_channel():
         assert app.query_one("#sidebar", Sidebar).get_child_by_id("C9") is not None
 
 
+async def test_rail_hidden_with_single_workspace():
+    app = make_app()  # one workspace
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        assert app.query_one("#rail").display is False  # no rail column wasted
+
+
+async def test_rail_shown_with_multiple_workspaces():
+    app = make_multi_app()  # T1, T2
+    async with app.run_test() as pilot:
+        for _ in range(5):
+            await pilot.pause()
+        assert app.query_one("#rail").display is True
+
+
 async def test_opening_channel_highlights_its_sidebar_row():
     app = make_app()  # C1, C2
     async with app.run_test() as pilot:

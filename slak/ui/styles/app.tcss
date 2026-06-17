@@ -18,13 +18,21 @@ Screen {
 .thread-row { padding: 1 1; }
 .thread-row.-selected { background: $surface; }
 
-/* Workspace rail — flat dark strip, no border */
+/* Workspace bar — a flat full-width strip along the top (horizontal tabs).
+ * Tabs are clickable, but styled as plain text (no hyperlink underline); hover
+ * just lifts the background as a click affordance. */
 #rail {
-    width: 6;
+    width: 100%;
+    height: 1;
     background: $surface-dark;
     color: $text-muted;
-    padding: 1 0;
-    content-align: center top;
+    padding: 0 2;
+    link-style: none;
+    link-color: $text-muted;
+    link-background: transparent;
+    link-style-hover: none;
+    link-color-hover: $text;
+    link-background-hover: $surface;
 }
 
 /* Sidebar — separated by a surface shade, not a border */

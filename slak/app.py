@@ -317,7 +317,9 @@ class PyslkApp(App):
         active_idx = order.index(active) if active in order else 0
         unread_ws = set(self.cache.workspaces_with_unreads())
         flags = [t in unread_ws for t in order]
-        self.query_one("#rail", Rail).set_workspaces(initials, active_idx, flags)
+        rail = self.query_one("#rail", Rail)
+        rail.display = len(order) > 1  # nothing to switch between with one workspace
+        rail.set_workspaces(initials, active_idx, flags)
         self._refresh_title()
 
     def _refresh_title(self) -> None:

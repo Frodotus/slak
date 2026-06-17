@@ -90,6 +90,18 @@ def test_avatar_placeholder_uses_the_same_color_as_the_name():
     assert all(" " * AVATAR_COLS in r for r in rows)           # 4-cell block per row
 
 
+def test_rail_markup_is_a_single_horizontal_row():
+    from slak.ui.widgets import _rail_markup
+    out = _rail_markup(["AB", "CD", "EF"], active=1, unread=[False, False, True])
+    assert "\n" not in out                 # horizontal: one row, no stacking
+    assert "AB" in out and "CD" in out and "EF" in out
+    assert "[b $text on $surface] CD [/]" in out  # active: bold on a lighter bg
+    assert "●" in out                      # unread shows a dot
+    # each tab is clickable -> switches to that workspace
+    assert "@click=app.switch_workspace(0)" in out
+    assert "@click=app.switch_workspace(2)" in out
+
+
 def test_user_color_is_deterministic_and_spreads_across_palette():
     from slak.ui.widgets import user_color, _NAME_COLORS
     c = user_color("U123")

@@ -69,6 +69,18 @@ def _fmt_time(ts: str) -> str:
         return ""
 
 
+def _rail_markup(initials: list[str], active: int, unread: list[bool]) -> str:
+    """Workspaces in a single horizontal row (active bold, unread dotted).
+    Each tab is a click action that switches to that workspace."""
+    cells = []
+    for i, ini in enumerate(initials):
+        dot = " [b]●[/]" if i < len(unread) and unread[i] else ""
+        # active tab gets a lighter background block (the bar is $surface-dark)
+        label = f"[b $text on $surface] {ini} [/]" if i == active else f" {ini} "
+        cells.append(f"[@click=app.switch_workspace({i})]{label}{dot}[/]")
+    return "  ".join(cells)
+
+
 class Rail(Static):
     """Workspace rail — stacked workspace initials with unread dots."""
 
@@ -78,13 +90,7 @@ class Rail(Static):
         active: int = 0,
         unread: list[bool] | None = None,
     ) -> None:
-        unread = unread or []
-        lines = []
-        for i, ini in enumerate(initials):
-            dot = " [b]●[/]" if i < len(unread) and unread[i] else ""
-            label = f"[b]{ini}[/]" if i == active else ini
-            lines.append(f"{label}{dot}")
-        self.update("\n\n".join(lines))
+        self.update(_rail_markup(initials, active, unread or []))
 
 
 NERD_LOCK = ""  # Nerd Font padlock: single-width, matches slk
