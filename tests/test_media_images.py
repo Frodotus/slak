@@ -90,6 +90,17 @@ def test_avatar_placeholder_uses_the_same_color_as_the_name():
     assert all(" " * AVATAR_COLS in r for r in rows)           # 4-cell block per row
 
 
+def test_splitter_width_clamps_and_respects_side():
+    from slak.ui.widgets import splitter_width
+    # side 'left': target left of splitter, width = mouse - target_x
+    assert splitter_width("left", target_x=0, target_right=26, mouse_x=30, lo=15, hi=80) == 30
+    # side 'right': target right of splitter, width = target_right - mouse
+    assert splitter_width("right", target_x=100, target_right=120, mouse_x=90, lo=15, hi=80) == 30
+    # clamped to [lo, hi]
+    assert splitter_width("left", 0, 10, 5, lo=15, hi=80) == 15    # below lo
+    assert splitter_width("left", 0, 10, 999, lo=15, hi=80) == 80  # above hi
+
+
 def test_rail_markup_is_a_single_horizontal_row():
     from slak.ui.widgets import _rail_markup
     out = _rail_markup(["AB", "CD", "EF"], active=1, unread=[False, False, True])

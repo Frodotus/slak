@@ -35,6 +35,11 @@ Screen {
     link-background-hover: $surface;
 }
 
+/* Draggable panel dividers (channel list / thread). 1 cell wide; accent on hover. */
+.splitter { width: 1; background: $surface; }
+.splitter:hover { background: $accent; }
+#thread-splitter { display: none; }  /* shown only while a thread is open */
+
 /* Sidebar — separated by a surface shade, not a border */
 #sidebar {
     width: 26;

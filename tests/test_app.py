@@ -235,6 +235,26 @@ async def test_switching_workspace_remembers_it_for_next_launch(tmp_path):
         assert "T2" in cfg_path.read_text()         # persisted to disk
 
 
+async def test_panel_widths_restored_from_config_and_resize_persists(tmp_path):
+    from slak.ui.widgets import Splitter
+    cfg_path = tmp_path / "config.toml"
+    cfg = Config(); cfg.sidebar_width = 34
+    client = FakeSlackClient("T1", "Acme", channels=[RemoteChannel("C1", "general")],
+                             history={"C1": [RemoteMessage("1.0", "u", "hi")]})
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"),
+                   config=cfg, config_path=cfg_path)
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        # configured sidebar width applied on mount
+        assert app.query_one("#sidebar").styles.width.cells == 34
+        # a splitter resize is recorded + persisted
+        app.on_splitter_resized(Splitter.Resized("thread", 55))
+        await pilot.pause()
+        assert app.config.thread_width == 55
+        assert "thread_width = 55" in cfg_path.read_text()
+
+
 async def test_clicking_a_message_selects_it():
     client = FakeSlackClient(
         team_id="T1", team_name="Acme",

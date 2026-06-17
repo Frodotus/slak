@@ -249,6 +249,59 @@ class Sidebar(ListView):
         return f"{glyph} {name}"
 
 
+def splitter_width(side: str, target_x: int, target_right: int, mouse_x: int,
+                   lo: int, hi: int) -> int:
+    """New width (cells) for a panel being dragged by a splitter, clamped to
+    [lo, hi]. ``side='left'`` = the target is left of the splitter (drag right
+    grows it); ``side='right'`` = target is right of the splitter."""
+    w = (mouse_x - target_x) if side == "left" else (target_right - mouse_x)
+    return max(lo, min(hi, w))
+
+
+class Splitter(Static):
+    """A 1-cell draggable divider that resizes an adjacent panel by id. Emits
+    :class:`Resized` (final width) when the drag ends so it can be persisted."""
+
+    class Resized(Message):
+        def __init__(self, target_id: str, width: int) -> None:
+            self.target_id = target_id
+            self.width = width
+            super().__init__()
+
+    def __init__(self, target_id: str, side: str, lo: int = 15, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.target_id = target_id
+        self.side = side  # 'left' or 'right' — where the target sits
+        self.lo = lo
+        self._dragging = False
+
+    def _target(self):
+        return self.screen.query_one(f"#{self.target_id}")
+
+    def on_mouse_down(self, event) -> None:
+        self._dragging = True
+        self.capture_mouse()
+        event.stop()
+
+    def on_mouse_move(self, event) -> None:
+        if not self._dragging:
+            return
+        target = self._target()
+        r = target.region
+        hi = max(self.lo, self.app.size.width - 20)  # keep room for the messages
+        target.styles.width = splitter_width(
+            self.side, r.x, r.right, event.screen_x, self.lo, hi
+        )
+
+    def on_mouse_up(self, event) -> None:
+        if not self._dragging:
+            return
+        self._dragging = False
+        self.release_mouse()
+        self.post_message(self.Resized(self.target_id, int(self._target().size.width)))
+        event.stop()
+
+
 class MessageWidget(Static):
     """One message row. Clicking it selects that message."""
 

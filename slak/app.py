@@ -97,6 +97,7 @@ from slak.ui.widgets import (
     SearchBar,
     SearchResultsModal,
     Sidebar,
+    Splitter,
     ThemePicker,
     ThreadList,
     ThreadPanel,
@@ -256,6 +257,7 @@ class PyslkApp(App):
         yield Rail(id="rail")
         with Horizontal():
             yield Sidebar(id="sidebar")
+            yield Splitter("sidebar", "left", id="sidebar-splitter", classes="splitter")
             with Vertical(id="main"):
                 yield Static("", id="header")
                 yield Static("─" * 200, id="header-rule")
@@ -265,6 +267,7 @@ class PyslkApp(App):
                 yield SearchBar(placeholder="Search this channel…", id="search")
                 yield MentionPopup(id="completion-popup")
                 yield ComposeInput(placeholder="Message…", id="compose")
+            yield Splitter("thread", "right", id="thread-splitter", classes="splitter")
             yield ThreadPanel(id="thread")
         yield Static("", id="status")
 
@@ -282,6 +285,9 @@ class PyslkApp(App):
                 pass
         self.query_one("#threads", ThreadList).set_custom_render(self._custom_render)
         self.query_one("#threads", ThreadList).display = False
+        # restore adjustable panel widths
+        self.query_one("#sidebar", Sidebar).styles.width = self.config.sidebar_width
+        self.query_one("#thread", ThreadPanel).styles.width = self.config.thread_width
         self.query_one("#typing", Static).display = False
         self._typing_timer = self.set_interval(1, self._prune_typing, pause=True)
         self._refresh_rail()
@@ -1371,7 +1377,9 @@ class PyslkApp(App):
 
     def action_toggle_sidebar(self) -> None:
         sidebar = self.query_one("#sidebar", Sidebar)
-        sidebar.display = not sidebar.display
+        visible = not sidebar.display
+        sidebar.display = visible
+        self.query_one("#sidebar-splitter", Splitter).display = visible
 
     def action_find_channel(self) -> None:
         self.run_worker(self._find_channel_flow(), exclusive=False)
@@ -1522,7 +1530,7 @@ class PyslkApp(App):
         self.open_thread_ts = thread_ts
         panel = self.query_one("#thread", ThreadPanel)
         panel.set_thread(replies, self._name_of)
-        panel.display = True
+        self._show_thread(True)
         if focus:
             self.query_one("#thread-compose", Input).focus()
 
@@ -1531,15 +1539,27 @@ class PyslkApp(App):
         if panel.display:
             self._close_thread_panel()
         elif self.open_thread_ts:
-            panel.display = True
+            self._show_thread(True)
 
     def action_close_thread(self) -> None:
         self._close_thread_panel()
 
     def _close_thread_panel(self) -> None:
         # hide the panel and return focus to the message it was opened from
-        self.query_one("#thread", ThreadPanel).display = False
+        self._show_thread(False)
         self.query_one("#messages", MessagePane).focus()
+
+    def _show_thread(self, visible: bool) -> None:
+        # keep the thread panel and its drag-splitter in sync
+        self.query_one("#thread", ThreadPanel).display = visible
+        self.query_one("#thread-splitter", Splitter).display = visible
+
+    def on_splitter_resized(self, event: Splitter.Resized) -> None:
+        if event.target_id == "sidebar":
+            self.config.sidebar_width = event.width
+        elif event.target_id == "thread":
+            self.config.thread_width = event.width
+        self._persist_config()
 
     def action_mark_unread(self) -> None:
         if self.active_channel is None:

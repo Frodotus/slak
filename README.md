@@ -22,6 +22,8 @@ full keybinding reference.
 - `Ctrl+K` fuzzy channel/DM finder — also lists public channels you haven't
   joined (marked `· join`) and joins one on selection; `Alt+←`/`Alt+→` walk
   channel history; `Ctrl+B` toggles the sidebar, `Ctrl+T` the thread panel.
+- Drag the dividers between the channel list / messages / thread to resize them;
+  the widths are remembered across restarts.
 - Cache-first startup: your last context renders instantly while sync runs behind it.
 
 **Messaging**

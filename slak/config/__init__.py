@@ -87,6 +87,8 @@ class Config:
     emoji_images: str = "on"  # on | off — kitty inline custom-emoji images
     image_preview: str = "terminal"  # terminal | gui — how Space previews an image
     colored_names: bool = False  # tint each author's name by a hash of their user id
+    sidebar_width: int = 26  # channel-list width (cells); adjustable via the splitter
+    thread_width: int = 42  # thread-panel width (cells); adjustable via the splitter
     notify_enabled: bool = True
     notify_on_mention: bool = True
     notify_on_dm: bool = True
@@ -140,6 +142,8 @@ class Config:
             emoji_images=appearance.get("emoji_images", "on"),
             image_preview=appearance.get("image_preview", "terminal"),
             colored_names=bool(appearance.get("colored_names", False)),
+            sidebar_width=int(appearance.get("sidebar_width", 26)),
+            thread_width=int(appearance.get("thread_width", 42)),
             notify_enabled=bool(notif.get("enabled", True)),
             notify_on_mention=bool(notif.get("on_mention", True)),
             notify_on_dm=bool(notif.get("on_dm", True)),
@@ -181,6 +185,8 @@ class Config:
         appearance["emoji_images"] = self.emoji_images
         appearance["image_preview"] = self.image_preview
         appearance["colored_names"] = self.colored_names
+        appearance["sidebar_width"] = self.sidebar_width
+        appearance["thread_width"] = self.thread_width
         doc["appearance"] = appearance
 
         notif = tomlkit.table()
