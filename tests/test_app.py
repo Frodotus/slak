@@ -372,6 +372,23 @@ async def test_open_thread_shows_parent_and_replies():
         assert len(app.query_one("#thread-messages", MessagePane).children) == 2
 
 
+async def test_esc_closes_open_thread_panel():
+    app = make_thread_app()
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        app.query_one("#messages", MessagePane).focus()
+        await pilot.pause()
+        await app.action_open_thread()
+        for _ in range(3):
+            await pilot.pause()
+        assert app.query_one("#thread").display is True
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.query_one("#thread").display is False  # closed by Esc
+        assert app.focused.id == "compose"
+
+
 async def test_replying_in_thread_posts_threaded_and_appends():
     app = make_thread_app()
     async with app.run_test() as pilot:

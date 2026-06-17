@@ -1290,6 +1290,12 @@ class PyslkApp(App):
             # Esc in the threads view returns focus to the sidebar (spec 03 §8)
             self.query_one("#sidebar", Sidebar).focus()
             return
+        panel = self.query_one("#thread", ThreadPanel)
+        if panel.display:
+            # Esc closes an open thread panel first
+            panel.display = False
+            self.query_one("#compose", Input).focus()
+            return
         self.query_one("#search", SearchBar).display = False
         self.query_one("#messages", MessagePane).remove_class("-searching")
         self.query_one("#compose", Input).focus()
