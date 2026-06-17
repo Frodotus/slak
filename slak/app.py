@@ -76,6 +76,7 @@ from slak.slack import (
     ReactionUpdated,
     SectionsChanged,
     SlackClient,
+    SlackError,
     StarsChanged,
     Typing,
 )
@@ -1583,14 +1584,43 @@ class PyslkApp(App):
             self._persist_config()
 
     async def _add_reaction(self, channel: str, ts: str, emoji: str) -> None:
+        """Toggle a reaction: add it, or remove it if I've already reacted."""
         client = self.client
         if client is None:
             return
+        mine = self._has_my_reaction(ts, emoji)
         try:
-            await client.add_reaction(channel, ts, emoji)
+            if mine:
+                await client.remove_reaction(channel, ts, emoji)
+            else:
+                await client.add_reaction(channel, ts, emoji)
+        except SlackError as exc:
+            # self-correct if our local view was stale (Slack is the source of truth)
+            code = str(exc)
+            try:
+                if code == "already_reacted":
+                    await client.remove_reaction(channel, ts, emoji)
+                elif code == "no_reaction":
+                    await client.add_reaction(channel, ts, emoji)
+                else:
+                    raise
+            except Exception as exc2:
+                self.notify(f"Reaction failed: {exc2}", severity="error")
         except Exception as exc:
-            # surface the failure (e.g. invalid_name) instead of swallowing it
             self.notify(f"Reaction failed: {exc}", severity="error")
+
+    def _has_my_reaction(self, ts: str, emoji: str) -> bool:
+        """Whether the current user already reacted with ``emoji`` on message ``ts``."""
+        me = self.client.self_user_id if self.client else ""
+        for pane_id in ("#messages", "#thread-messages"):
+            try:
+                pane = self.query_one(pane_id, MessagePane)
+            except Exception:
+                continue
+            for m in pane._messages:
+                if m.ts == ts:
+                    return any(r.emoji == emoji and me in r.users for r in m.reactions)
+        return False
 
     def action_open_links(self) -> None:
         self.run_worker(self._open_links_flow(), exclusive=False)

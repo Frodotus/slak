@@ -60,7 +60,7 @@ KEYBINDINGS: list[tuple[str, list[tuple[str, str]]]] = [
             ("↑ / ↓", "Select previous / next message"),
             ("⚑ Threads", "Sidebar row opens the threads view"),
             ("Enter", "Open thread"),
-            ("Ctrl+R", "Add reaction (search emoji, or recent when empty)"),
+            ("Ctrl+R", "Add/remove reaction (search emoji, or recent when empty)"),
             ("Ctrl+E", "Edit your message"),
             ("Ctrl+O", "Open link(s) in the message"),
             ("Ctrl+G", "Set a local nickname for the author"),

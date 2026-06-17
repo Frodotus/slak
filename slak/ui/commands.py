@@ -51,7 +51,7 @@ class PyslkCommands(Provider):
             ("End Do Not Disturb", "end_dnd", "Turn off snooze"),
             ("Search this channel", "search", "Find messages in the current channel"),
             ("Search all channels", "search_workspace", "Search the whole workspace"),
-            ("Add reaction", "react", "React: search emoji, or pick a recent one"),
+            ("Add reaction", "react", "React (toggles off if you already reacted)"),
             ("Edit message", "edit_message", "Edit your selected message"),
             ("Delete message", "delete_message", "Delete your selected message"),
             ("Open link(s)", "open_links", "Open URLs from the selected message"),

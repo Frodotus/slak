@@ -825,6 +825,22 @@ async def test_failed_reaction_surfaces_a_toast():
         assert "invalid_name" in str(captured[0])
 
 
+async def test_reacting_again_with_same_emoji_removes_it():
+    app = make_app()  # C1 with one message at ts 100.0
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        msg = app.query_one("#messages", MessagePane)._messages[0]
+        await app._add_reaction("C1", "100.0", "tada")    # add
+        for _ in range(2):
+            await pilot.pause()
+        assert any(r.emoji == "tada" for r in msg.reactions)
+        await app._add_reaction("C1", "100.0", "tada")    # same again -> toggle off
+        for _ in range(2):
+            await pilot.pause()
+        assert not any(r.emoji == "tada" for r in msg.reactions)
+
+
 async def test_group_dm_name_formats_member_handles():
     client = FakeSlackClient(
         team_id="T1", team_name="Acme",
