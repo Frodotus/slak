@@ -459,6 +459,10 @@ class PyslkApp(App):
         client = self.client
         if client is None:
             return
+        # remember the active workspace so the next launch reopens it
+        if self.config.last_workspace != client.team_id:
+            self.config.last_workspace = client.team_id
+            self._persist_config()
         self._apply_theme(self.config.resolve_theme(client.team_id))
         await self._load_users(client)
         await self._load_custom_emoji(client)

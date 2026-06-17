@@ -97,6 +97,7 @@ class Config:
     workspaces: list[WorkspaceConfig] = field(default_factory=list)
     nicknames: dict[str, str] = field(default_factory=dict)  # user_id -> local nickname
     recent_reactions: list[str] = field(default_factory=list)  # MRU emoji shortcodes
+    last_workspace: str | None = None  # team_id of the most-recently-active workspace
 
     @classmethod
     def loads(cls, text: str) -> "Config":
@@ -149,6 +150,7 @@ class Config:
             workspaces=workspaces,
             nicknames={str(k): str(v) for k, v in data.get("nicknames", {}).items()},
             recent_reactions=[str(x) for x in general.get("recent_reactions", [])],
+            last_workspace=general.get("last_workspace"),
         )
 
     def dumps(self) -> str:
@@ -166,6 +168,8 @@ class Config:
         general["typing_indicators"] = self.typing_indicators
         if self.recent_reactions:
             general["recent_reactions"] = self.recent_reactions
+        if self.last_workspace is not None:
+            general["last_workspace"] = self.last_workspace
         doc["general"] = general
 
         appearance = tomlkit.table()

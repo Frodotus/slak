@@ -216,6 +216,25 @@ async def test_rail_shown_with_multiple_workspaces():
         assert app.query_one("#rail").display is True
 
 
+async def test_switching_workspace_remembers_it_for_next_launch(tmp_path):
+    cfg_path = tmp_path / "config.toml"
+    a = FakeSlackClient("T1", "Acme", channels=[RemoteChannel("C1", "general")],
+                        history={"C1": [RemoteMessage("1.0", "u", "hi")]})
+    b = FakeSlackClient("T2", "Beta", channels=[RemoteChannel("C9", "beta")],
+                        history={"C9": [RemoteMessage("1.0", "u", "hi")]})
+    app = PyslkApp(router=WorkspaceRouter([a, b], order=["T1", "T2"]),
+                   cache=Cache.open(":memory:"), config=Config(), config_path=cfg_path)
+    async with app.run_test() as pilot:
+        for _ in range(5):
+            await pilot.pause()
+        assert app.config.last_workspace == "T1"   # initial active recorded
+        await app.action_switch_workspace(1)       # -> T2
+        for _ in range(4):
+            await pilot.pause()
+        assert app.config.last_workspace == "T2"
+        assert "T2" in cfg_path.read_text()         # persisted to disk
+
+
 async def test_opening_channel_highlights_its_sidebar_row():
     app = make_app()  # C1, C2
     async with app.run_test() as pilot:

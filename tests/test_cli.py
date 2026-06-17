@@ -14,7 +14,29 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from slak.__main__ import startup_mode
+from slak.__main__ import choose_active, startup_mode
+from slak.config import Config, WorkspaceConfig
+from slak.slack import Token
+
+
+def _tok(team_id):
+    return Token(access_token="x", cookie="c", team_id=team_id, team_name=team_id)
+
+
+def test_choose_active_prefers_last_used_workspace():
+    tokens = [_tok("T1"), _tok("T2"), _tok("T3")]
+    assert choose_active(tokens, Config(last_workspace="T2")) == "T2"
+
+
+def test_choose_active_falls_back_to_default_then_first():
+    tokens = [_tok("T1"), _tok("T2")]
+    # stale last_workspace (not present) -> configured default
+    cfg = Config(last_workspace="GONE",
+                 default_workspace="beta",
+                 workspaces=[WorkspaceConfig(slug="beta", team_id="T2")])
+    assert choose_active(tokens, cfg) == "T2"
+    # nothing remembered or configured -> first token
+    assert choose_active(tokens, Config()) == "T1"
 
 
 def test_demo_flag_always_wins():

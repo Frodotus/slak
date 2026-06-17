@@ -63,6 +63,15 @@ def pick_token(tokens: list[Token], cfg: Config) -> Token:
     return tokens[0]
 
 
+def choose_active(tokens: list[Token], cfg: Config) -> str:
+    """Team id to open at launch: the last-used workspace if still present,
+    otherwise the configured default (or the first)."""
+    ids = {t.team_id for t in tokens}
+    if cfg.last_workspace in ids:
+        return cfg.last_workspace
+    return pick_token(tokens, cfg).team_id
+
+
 _WIZARD_INTRO = """\
 Let's connect a Slack workspace.
 
@@ -211,7 +220,7 @@ def _run_app(cfg: Config, demo: bool) -> None:
         order = cfg.order_team_ids([t.team_id for t in tokens])
         # honour default_workspace by making it active
         router = WorkspaceRouter(clients, order)
-        router.set_active(pick_token(tokens, cfg).team_id)
+        router.set_active(choose_active(tokens, cfg))
         CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
         cache = Cache.open(str(CACHE_PATH))
         config_path = CONFIG_PATH

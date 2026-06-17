@@ -60,6 +60,11 @@ def test_recent_reactions_roundtrip_and_record_is_mru():
     assert len(cfg.recent_reactions) <= 16  # capped
 
 
+def test_last_workspace_roundtrips():
+    assert Config().last_workspace is None
+    assert roundtrip(Config(last_workspace="T42")).last_workspace == "T42"
+
+
 def test_nicknames_roundtrip_and_set_helper():
     cfg = Config()
     assert cfg.nicknames == {}
