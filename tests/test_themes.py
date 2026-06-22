@@ -32,6 +32,11 @@ def test_dark_is_available():
     assert len(theme_names()) >= 6
 
 
+def test_oled_theme_has_true_black_background():
+    assert "oled" in theme_names()
+    assert get_theme("oled")["bg"] == "#000000"  # OLED pixels fully off
+
+
 def test_every_theme_defines_every_slot():
     for name in theme_names():
         theme = get_theme(name)

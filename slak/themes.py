@@ -85,6 +85,12 @@ THEMES: dict[str, dict[str, str]] = {
         "text": "#e0def4", "text_muted": "#6e6a86", "accent": "#c4a7e7",
         "hairline": "#26233a",
     },
+    # True-black background so OLED pixels switch fully off (saves power, deep black).
+    "oled": {
+        "bg": "#000000", "surface": "#14141c", "surface_dark": "#0a0a0e",
+        "text": "#e0e0e6", "text_muted": "#6a6a78", "accent": "#5eb6ff",
+        "hairline": "#20202a",
+    },
     # ANSI-palette themes follow the terminal's own 16 colours (spec 05 §ANSI):
     # the UI re-themes when the user re-themes their terminal. Exempt from the
     # CIELAB contrast rule since the actual colours are terminal-defined.
