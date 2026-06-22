@@ -19,6 +19,23 @@ import json
 from slak.blockkit import image_urls, preview_image_urls, render_extras
 
 
+def test_nerd_file_icons_are_type_specific_with_emoji_fallback():
+    from slak.blockkit import _file_icon, set_file_icons
+    xlsx = {"name": "q3.xlsx", "filetype": "xlsx"}
+    pdf = {"name": "r.pdf", "filetype": "pdf"}
+    docx = {"name": "memo.docx", "filetype": "docx"}
+    try:
+        set_file_icons(use_nerd=True)
+        # distinct Nerd glyphs per type (not emoji)
+        icons = {_file_icon(xlsx), _file_icon(pdf), _file_icon(docx)}
+        assert len(icons) == 3
+        assert all(len(g) == 1 and ord(g) >= 0xE000 for g in icons)  # private-use glyphs
+    finally:
+        set_file_icons(use_nerd=False)
+    # fallback: emoji when no Nerd Font
+    assert _file_icon(pdf) == "📄"
+
+
 def test_pdf_file_renders_as_clickable_card():
     raw = json.dumps({"files": [{
         "name": "report.pdf", "mimetype": "application/pdf",

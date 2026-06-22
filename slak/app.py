@@ -44,7 +44,7 @@ from textual.widgets import Input, ListView, Static
 from slak.cache import Cache, Channel, ThreadSubscription
 from slak.debuglog import debug
 from slak.emoji import resolve_custom_emoji
-from slak.blockkit import image_urls, preview_image_urls
+from slak.blockkit import image_urls, preview_image_urls, set_file_icons
 from slak.images import EmojiImages, MediaImages, detect_protocol, tmux_passthrough
 from slak.links import extract_links
 from slak.nav import NavHistory
@@ -272,7 +272,9 @@ class PyslkApp(App):
         yield Static("", id="status")
 
     async def on_mount(self) -> None:
-        set_private_glyph(use_nerd_glyphs(self.config.nerd_font))
+        nerd = use_nerd_glyphs(self.config.nerd_font)
+        set_private_glyph(nerd)
+        set_file_icons(nerd)  # brand file-type glyphs when a Nerd Font is present
         self._init_emoji_images()
         for pane_id in ("#messages", "#thread-messages"):
             try:

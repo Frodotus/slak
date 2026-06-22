@@ -127,6 +127,66 @@ def _file_image_url(f) -> str | None:
 
 _ARCHIVE_TYPES = {"zip", "gz", "tar", "tgz", "rar", "7z", "bz2", "xz"}
 
+# File-type icons. Nerd Fonts carry brand/type glyphs (FontAwesome file-* range)
+# so xlsx→Excel, pdf→Adobe, docx→Word, etc.; without a Nerd Font we fall back to
+# the closest emoji. Toggled by set_file_icons() (wired from [appearance] nerd_font).
+_nerd_file_icons = False
+
+_NERD_BY_EXT = {
+    "pdf": "",
+    "xls": "", "xlsx": "", "csv": "",
+    "doc": "", "docx": "", "rtf": "",
+    "ppt": "", "pptx": "",
+}
+_NERD_ARCHIVE = ""
+_NERD_BY_CAT = {
+    "image": "", "audio": "", "video": "",
+    "code": "", "text": "",
+}
+_NERD_DEFAULT = ""
+
+_EMOJI_BY_EXT = {
+    "pdf": "📄", "xls": "📊", "xlsx": "📊", "csv": "📊",
+    "doc": "📄", "docx": "📄", "rtf": "📄", "ppt": "📊", "pptx": "📊",
+}
+_EMOJI_BY_CAT = {
+    "image": "🖼", "audio": "🎵", "video": "🎬", "code": "📝", "text": "📝",
+}
+_EMOJI_DEFAULT = "📎"
+
+
+def set_file_icons(use_nerd: bool) -> None:
+    """Use Nerd Font file-type glyphs (brand-specific) vs emoji fallbacks."""
+    global _nerd_file_icons
+    _nerd_file_icons = use_nerd
+
+
+def _file_ext(f: dict) -> str:
+    ft = str(f.get("filetype", "")).lower()
+    if ft:
+        return ft
+    name = str(f.get("name", ""))
+    return name.rsplit(".", 1)[-1].lower() if "." in name else ""
+
+
+def _file_category(f: dict) -> str:
+    mt = str(f.get("mimetype", "")).lower()
+    ft = _file_ext(f)
+    if mt.startswith("image/"):
+        return "image"
+    if mt.startswith("video/"):
+        return "video"
+    if mt.startswith("audio/"):
+        return "audio"
+    if ft in _ARCHIVE_TYPES or "zip" in mt or "compressed" in mt:
+        return "archive"
+    if f.get("mode") == "snippet" or ft in ("py", "js", "ts", "go", "rs", "c", "cpp",
+                                            "java", "rb", "sh", "json", "html", "css"):
+        return "code"
+    if mt.startswith("text/"):
+        return "text"
+    return "other"
+
 
 def _human_size(n) -> str:
     """Human-readable byte size, e.g. ``1.5 MB`` (empty for unknown/zero)."""
@@ -141,21 +201,19 @@ def _human_size(n) -> str:
 
 
 def _file_icon(f: dict) -> str:
-    mt = str(f.get("mimetype", "")).lower()
-    ft = str(f.get("filetype", "")).lower()
-    if mt.startswith("image/"):
-        return "🖼"
-    if mt.startswith("video/"):
-        return "🎬"
-    if mt.startswith("audio/"):
-        return "🎵"
-    if ft == "pdf" or mt == "application/pdf":
-        return "📄"
-    if ft in _ARCHIVE_TYPES or "zip" in mt or "compressed" in mt:
+    ext = _file_ext(f)
+    cat = _file_category(f)
+    if _nerd_file_icons:
+        if ext in _NERD_BY_EXT:
+            return _NERD_BY_EXT[ext]
+        if cat == "archive":
+            return _NERD_ARCHIVE
+        return _NERD_BY_CAT.get(cat, _NERD_DEFAULT)
+    if ext in _EMOJI_BY_EXT:
+        return _EMOJI_BY_EXT[ext]
+    if cat == "archive":
         return "📦"
-    if f.get("mode") == "snippet" or mt.startswith("text/"):
-        return "📝"
-    return "📎"
+    return _EMOJI_BY_CAT.get(cat, _EMOJI_DEFAULT)
 
 
 def _render_file(f, image_render: ImageRender) -> str | None:
