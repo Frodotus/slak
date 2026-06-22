@@ -907,7 +907,7 @@ class PyslkApp(App):
             return
         urls: list[str] = []
         seen: set[str] = set()
-        for m in self.query_one("#messages", MessagePane)._messages:
+        for m in self._visible_messages():
             for url in image_urls(getattr(m, "raw_json", "") or ""):
                 if url not in seen:
                     seen.add(url)
@@ -927,7 +927,7 @@ class PyslkApp(App):
         if not customs:
             return
         names: set[str] = set()
-        for m in self.query_one("#messages", MessagePane)._messages:
+        for m in self._visible_messages():
             names.update(re.findall(r":([a-zA-Z0-9_+\-]+):", m.text))
             names.update(r.emoji for r in m.reactions)  # reactions aren't in text
         custom_names = [n for n in names if resolve_custom_emoji(n, customs)]
@@ -1007,7 +1007,7 @@ class PyslkApp(App):
         team = self.router.active_team_id() or ""
         urls = self._avatar_urls.get(team, {})
         seen, changed = set(), False
-        for m in self.query_one("#messages", MessagePane)._messages:
+        for m in self._visible_messages():
             url = urls.get(m.user_id)
             if url and url not in seen and ai.markup(url) is None:
                 seen.add(url)
@@ -1022,14 +1022,30 @@ class PyslkApp(App):
         if client is None:
             return
         names = self._names.get(client.team_id, {})
-        for m in self.query_one("#messages", MessagePane)._messages:
+        for m in self._visible_messages():
             if m.user_id.startswith("B") and m.user_id not in names:
                 self.run_worker(self._resolve_bot(client, m.user_id), exclusive=False)
 
+    def _panes(self) -> list[MessagePane]:
+        """The message panes that are actually showing (channel + open thread)."""
+        panes = []
+        for pane_id in ("#messages", "#thread-messages"):
+            try:
+                panes.append(self.query_one(pane_id, MessagePane))
+            except Exception:
+                pass
+        return panes
+
+    def _visible_messages(self) -> list:
+        """All messages currently rendered — channel pane plus the thread panel,
+        so prefetch/refresh cover thread replies too."""
+        return [m for pane in self._panes() for m in pane._messages]
+
     def _refresh_messages(self) -> None:
-        # Re-render the messages already in the pane (preserving reactions and
+        # Re-render the messages already in the panes (preserving reactions and
         # other live fields the cache doesn't persist) — do NOT reload from cache.
-        self.query_one("#messages", MessagePane).rerender()
+        for pane in self._panes():
+            pane.rerender()
 
     def _update_status(self) -> None:
         client = self.client
@@ -1537,6 +1553,11 @@ class PyslkApp(App):
         panel = self.query_one("#thread", ThreadPanel)
         panel.set_thread(replies, self._name_of)
         self._show_thread(True)
+        # render images/emoji/avatars in the thread replies too
+        self.run_worker(self._prefetch_images(), exclusive=False)
+        self.run_worker(self._prefetch_emoji(), exclusive=False)
+        self.run_worker(self._prefetch_avatars(), exclusive=False)
+        self._resolve_bots()
         if focus:
             self.query_one("#thread-compose", Input).focus()
 

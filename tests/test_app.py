@@ -255,6 +255,31 @@ async def test_panel_widths_restored_from_config_and_resize_persists(tmp_path):
         assert "thread_width = 55" in cfg_path.read_text()
 
 
+async def test_thread_reply_image_renders_and_is_covered_by_prefetch():
+    raw = json.dumps({"files": [{"mimetype": "image/png",
+                                 "url_private": "https://x/t.png", "name": "pic"}]})
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [
+            RemoteMessage("100.0", "u", "parent", reply_count=1),
+            RemoteMessage("150.0", "u2", "look", thread_ts="100.0", raw_json=raw),
+        ]},
+    )
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"), config=Config())
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        await app.open_thread("C1", "100.0", focus=False)
+        for _ in range(4):
+            await pilot.pause()
+        tp = app.query_one("#thread-messages", MessagePane)
+        reply = next(m for m in tp._messages if m.ts == "150.0")
+        assert "🖼" in tp._body(reply)                       # image extra rendered
+        # prefetch/refresh now include the thread pane's replies
+        assert any(m.ts == "150.0" for m in app._visible_messages())
+
+
 async def test_thread_reply_updates_parent_indicator_live():
     from slak.slack import NewMessage
     client = FakeSlackClient(
