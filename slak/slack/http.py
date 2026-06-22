@@ -61,6 +61,7 @@ from slak.slack import (
     SlackError,
     ThreadSub,
     Token,
+    TOMBSTONE_TEXT,
 )
 
 _AUTH_ERRORS = {"invalid_auth", "not_authed", "account_inactive", "token_revoked"}
@@ -116,7 +117,11 @@ def _message_from_dict(m: dict) -> RemoteMessage:
             f"hidden={m.get('hidden')!r} tombstone={m.get('tombstone')!r} "
             f"keys={sorted(m.keys())}"
         )
-    deleted = m.get("subtype") == "tombstone" or bool(m.get("tombstone"))
+    deleted = (
+        m.get("subtype") == "tombstone"
+        or bool(m.get("tombstone"))
+        or m.get("text") == TOMBSTONE_TEXT
+    )
     return RemoteMessage(
         ts=m.get("ts", ""),
         user_id=m.get("user", m.get("bot_id", "")),

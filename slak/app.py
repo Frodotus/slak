@@ -78,6 +78,7 @@ from slak.slack import (
     SlackClient,
     SlackError,
     StarsChanged,
+    TOMBSTONE_TEXT,
     Typing,
 )
 from slak.ui.commands import PyslkCommands
@@ -782,7 +783,12 @@ class PyslkApp(App):
         self._update_header(channel_id)
         self.query_one("#sidebar", Sidebar).highlight_channel(channel_id)
         # cache-first: render what we have instantly…
-        cached = [to_remote_message(m) for m in self.cache.get_messages(channel_id)]
+        cached = [
+            to_remote_message(m)
+            for m in self.cache.get_messages(
+                channel_id, include_deleted=self.config.keep_deleted_messages
+            )
+        ]
         self.query_one("#messages", MessagePane).set_messages(
             _top_level(cached), self._name_of
         )
@@ -1632,7 +1638,9 @@ class PyslkApp(App):
         for r in replies:
             if r.deleted or self.cache.is_message_deleted(channel_id, r.ts):
                 r.deleted = True
-                r.text = self.cache.message_text(channel_id, r.ts)
+                original = self.cache.message_text(channel_id, r.ts)
+                # ignore legacy rows that cached Slack's placeholder as the body
+                r.text = "" if original == TOMBSTONE_TEXT else original
         self.open_thread_channel = channel_id
         self.open_thread_ts = thread_ts
         panel = self.query_one("#thread", ThreadPanel)

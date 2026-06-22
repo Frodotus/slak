@@ -261,6 +261,14 @@ def test_message_from_dict_marks_tombstone_deleted():
     assert m.text == ""  # drop Slack's placeholder; our renderer adds "(deleted)"
 
 
+def test_message_from_dict_marks_sentinel_text_deleted():
+    # belt-and-suspenders: the tombstone text even without the subtype
+    from slak.slack.http import _message_from_dict
+    m = _message_from_dict({"ts": "5.0", "text": "This message was deleted."})
+    assert m.deleted is True
+    assert m.text == ""
+
+
 async def test_update_message_calls_chat_update():
     seen = {}
 

@@ -96,6 +96,16 @@ async def test_delete_marks_message_removed_but_keeps_it():
         assert "(deleted)" in body       # ...just flagged as removed
 
 
+def test_deleted_message_keeps_reply_indicator():
+    # a deleted thread parent must still be openable (replies live on)
+    pane = MessagePane()
+    m = RemoteMessage("100.0", "U1", "gone", reply_count=3, deleted=True)
+    body = pane._body(m)
+    assert "(deleted)" in body
+    assert "3 repl" in body
+    assert "open_thread_at('100.0')" in body
+
+
 async def test_delete_drops_message_when_keep_disabled():
     app, client = make_app(author="Uself", config=Config(keep_deleted_messages=False))
     async with app.run_test() as pilot:

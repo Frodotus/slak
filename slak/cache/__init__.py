@@ -420,13 +420,18 @@ class Cache:
         ).fetchone()
         return row["ts"] if row else ""
 
-    def get_messages(self, channel_id: str, limit: int = 50) -> list[Message]:
-        """Return up to ``limit`` newest messages, oldest-first."""
+    def get_messages(self, channel_id: str, limit: int = 50,
+                     include_deleted: bool = False) -> list[Message]:
+        """Return up to ``limit`` newest messages, oldest-first.
+
+        Deleted messages are hidden by default; pass ``include_deleted`` to keep
+        them so the UI can render a ``(deleted)`` tombstone in their place."""
+        deleted_clause = "" if include_deleted else "AND is_deleted = 0"
         rows = self._conn.execute(
-            """
+            f"""
             SELECT * FROM (
                 SELECT * FROM messages
-                WHERE channel_id = ? AND is_deleted = 0
+                WHERE channel_id = ? {deleted_clause}
                 ORDER BY CAST(ts AS REAL) DESC LIMIT ?
             ) ORDER BY CAST(ts AS REAL) ASC
             """,

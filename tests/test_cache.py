@@ -47,6 +47,18 @@ def test_get_messages_respects_limit_keeping_newest(cache):
     assert texts == ["m3", "m4"]
 
 
+def test_get_messages_can_include_deleted(cache):
+    cache.add_message(_msg("100.0", "kept"))
+    cache.add_message(_msg("200.0", "gone"))
+    cache.delete_message("C1", "200.0")
+    # default: deleted ones are hidden
+    assert [m.text for m in cache.get_messages("C1")] == ["kept"]
+    # opt-in: keep them so they can render as a "(deleted)" tombstone
+    msgs = cache.get_messages("C1", include_deleted=True)
+    assert [m.text for m in msgs] == ["kept", "gone"]
+    assert msgs[1].is_deleted is True
+
+
 def test_add_message_upserts_in_place(cache):
     cache.add_message(_msg("100.0", "original"))
     cache.add_message(_msg("100.0", "edited", is_edited=True))

@@ -597,6 +597,15 @@ class MessagePane(VerticalScroll, can_focus=True):
         for i, w in enumerate(self._widgets):
             w.set_class(i == self._selected, "-selected")
 
+    def _reply_markup(self, m: RemoteMessage) -> str:
+        """The clickable ``💬 N replies`` indicator, or '' when not applicable."""
+        if self._reply_indicator and getattr(m, "reply_count", 0):
+            n = m.reply_count
+            tts = m.thread_ts or m.ts  # the thread is keyed by the parent's ts
+            plural = "y" if n == 1 else "ies"
+            return f"\n[@click=app.open_thread_at('{tts}')]💬 {n} repl{plural}[/]"
+        return ""
+
     def _body(self, m: RemoteMessage, prev: RemoteMessage | None = None) -> str:
         # divider above the first message of a new day (not at the very top)
         new_day = prev is not None and _day_key(m.ts) != _day_key(prev.ts)
@@ -620,6 +629,7 @@ class MessagePane(VerticalScroll, can_focus=True):
                 body = text + marker
             else:
                 body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]{marker}\n{text}"
+            body += self._reply_markup(m)  # a deleted parent's thread is still live
             return self._with_avatar(m, body, continuation=cont)
         # grouped continuation: drop the repeated author + timestamp header
         if cont:
@@ -634,11 +644,7 @@ class MessagePane(VerticalScroll, can_focus=True):
         )
         if extras:
             body += "\n" + "\n".join(extras)
-        if self._reply_indicator and getattr(m, "reply_count", 0):
-            n = m.reply_count
-            tts = m.thread_ts or m.ts  # the thread is keyed by the parent's ts
-            plural = "y" if n == 1 else "ies"
-            body += f"\n[@click=app.open_thread_at('{tts}')]💬 {n} repl{plural}[/]"
+        body += self._reply_markup(m)
         if m.reactions:
             # dim only the count — the emoji's own markup (esp. a kitty image
             # placeholder, whose fg colour encodes the image id) must be untouched

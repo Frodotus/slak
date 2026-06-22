@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from slak.cache import Cache
+from slak.cache import Cache, Message
 from slak.services import (
     backoff_delays,
     persist_messages,
@@ -38,6 +38,22 @@ def test_to_remote_message_round_trips():
     rm = RemoteMessage(ts="1.0", user_id="U1", text="hi")
     back = to_remote_message(to_cache_message("T1", "C1", rm))
     assert (back.ts, back.user_id, back.text) == ("1.0", "U1", "hi")
+
+
+def test_deleted_flag_round_trips_through_cache():
+    rm = RemoteMessage(ts="1.0", user_id="U1", text="gone", deleted=True)
+    cm = to_cache_message("T1", "C1", rm)
+    assert cm.is_deleted is True
+    assert to_remote_message(cm).deleted is True
+
+
+def test_to_remote_message_treats_tombstone_sentinel_as_deleted():
+    # legacy cache rows stored Slack's tombstone text with is_deleted=0
+    m = Message(ts="1.0", channel_id="C1", workspace_id="T1",
+                text="This message was deleted.")
+    back = to_remote_message(m)
+    assert back.deleted is True
+    assert back.text == ""  # don't surface Slack's placeholder
 
 
 def test_persist_messages_writes_to_cache_oldest_first():

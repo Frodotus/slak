@@ -27,7 +27,7 @@ import json
 from collections.abc import Awaitable, Callable, Iterator
 
 from slak.cache import Cache, Message
-from slak.slack import RemoteMessage
+from slak.slack import RemoteMessage, TOMBSTONE_TEXT
 
 
 def to_cache_message(team_id: str, channel_id: str, rm: RemoteMessage) -> Message:
@@ -40,6 +40,7 @@ def to_cache_message(team_id: str, channel_id: str, rm: RemoteMessage) -> Messag
         thread_ts=rm.thread_ts,
         reply_count=rm.reply_count,
         raw_json=rm.raw_json,
+        is_deleted=rm.deleted,
     )
 
 
@@ -87,14 +88,18 @@ def _username_from_raw(raw_json: str) -> str:
 
 
 def to_remote_message(m: Message) -> RemoteMessage:
+    # legacy rows stored Slack's tombstone text with is_deleted=0; treat that as
+    # deleted too, and never surface the placeholder body
+    deleted = m.is_deleted or m.text == TOMBSTONE_TEXT
     return RemoteMessage(
         ts=m.ts,
         user_id=m.user_id,
-        text=m.text,
+        text="" if m.text == TOMBSTONE_TEXT else m.text,
         thread_ts=m.thread_ts,
         reply_count=m.reply_count,
         raw_json=m.raw_json,
         username=_username_from_raw(m.raw_json),
+        deleted=deleted,
     )
 
 

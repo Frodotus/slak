@@ -30,6 +30,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
+# Slack's placeholder body for a deleted message (tombstone). We never display
+# this — a deleted message renders its recovered content plus a "(deleted)" mark.
+TOMBSTONE_TEXT = "This message was deleted."
+
 
 @dataclass
 class Reaction:
