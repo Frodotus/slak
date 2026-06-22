@@ -63,6 +63,37 @@ def _parse_sections(raw: dict) -> dict[str, list[str]]:
     return out
 
 
+_TRUE = {"on", "true", "yes", "1"}
+_FALSE = {"off", "false", "no", "0"}
+
+
+def _flag(raw, default: bool) -> bool:
+    """Parse a boolean toggle, accepting real bools or legacy ``on``/``off`` strings."""
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str):
+        s = raw.strip().lower()
+        if s in _TRUE:
+            return True
+        if s in _FALSE:
+            return False
+    return default
+
+
+def _opt_flag(raw) -> bool | None:
+    """Parse an optional toggle where unset / ``auto`` means None (auto-detect)."""
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return raw
+    s = str(raw).strip().lower()
+    if s in _TRUE:
+        return True
+    if s in _FALSE:
+        return False
+    return None  # "auto" or anything else
+
+
 @dataclass
 class WorkspaceConfig:
     slug: str
@@ -82,11 +113,12 @@ class Config:
     typing_indicators: bool = True
     group_within_minutes: int = 0
     image_protocol: str = "auto"  # auto | kitty | sixel | halfblock | off
-    nerd_font: str = "auto"  # auto | on | off — private-channel padlock glyph
-    avatars: str = "off"  # on | off — show user avatars beside messages
-    emoji_images: str = "on"  # on | off — kitty inline custom-emoji images
+    # Booleans toggle features; "auto" is the *absence* of the setting (None).
+    nerd_font: bool | None = None  # None = auto-detect; True/False force the padlock glyph
+    avatars: bool = False  # show user avatars beside messages
+    emoji_images: bool = True  # kitty inline custom-emoji images
     image_preview: str = "terminal"  # terminal | gui — how Space previews an image
-    file_icons: str = "auto"  # auto | nerd | emoji — attachment file-type icon style
+    file_icons: str | None = None  # None = auto; "nerd" | "emoji" force the icon style
     colored_names: bool = False  # tint each author's name by a hash of their user id
     sidebar_width: int = 26  # channel-list width (cells); adjustable via the splitter
     thread_width: int = 42  # thread-panel width (cells); adjustable via the splitter
@@ -138,12 +170,13 @@ class Config:
             typing_indicators=bool(general.get("typing_indicators", True)),
             group_within_minutes=int(appearance.get("group_within_minutes", 0)),
             image_protocol=appearance.get("image_protocol", "auto"),
-            nerd_font=appearance.get("nerd_font", "auto"),
-            avatars=appearance.get("avatars", "off"),
-            emoji_images=appearance.get("emoji_images", "on"),
+            nerd_font=_opt_flag(appearance.get("nerd_font")),
+            avatars=_flag(appearance.get("avatars"), False),
+            emoji_images=_flag(appearance.get("emoji_images"), True),
             image_preview=appearance.get("image_preview", "terminal"),
-            file_icons=appearance.get("file_icons", "auto"),
-            colored_names=bool(appearance.get("colored_names", False)),
+            file_icons=(lambda v: None if v is None or str(v).lower() == "auto"
+                        else str(v))(appearance.get("file_icons")),
+            colored_names=_flag(appearance.get("colored_names"), False),
             sidebar_width=int(appearance.get("sidebar_width", 26)),
             thread_width=int(appearance.get("thread_width", 42)),
             notify_enabled=bool(notif.get("enabled", True)),
@@ -182,12 +215,15 @@ class Config:
         appearance["theme"] = self.theme
         appearance["group_within_minutes"] = self.group_within_minutes
         appearance["image_protocol"] = self.image_protocol
-        appearance["nerd_font"] = self.nerd_font
         appearance["avatars"] = self.avatars
         appearance["emoji_images"] = self.emoji_images
         appearance["image_preview"] = self.image_preview
-        appearance["file_icons"] = self.file_icons
         appearance["colored_names"] = self.colored_names
+        # auto = absent: only write these when explicitly forced
+        if self.nerd_font is not None:
+            appearance["nerd_font"] = self.nerd_font
+        if self.file_icons is not None:
+            appearance["file_icons"] = self.file_icons
         appearance["sidebar_width"] = self.sidebar_width
         appearance["thread_width"] = self.thread_width
         doc["appearance"] = appearance

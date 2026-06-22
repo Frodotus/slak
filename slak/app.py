@@ -828,7 +828,7 @@ class PyslkApp(App):
     # --- custom emoji images (kitty, best-effort) ------------------------
 
     def _init_emoji_images(self) -> None:
-        if self.config.emoji_images == "off":
+        if not self.config.emoji_images:
             proto = "off"  # disabled -> custom emoji render as :name: text
         else:
             proto = self.config.image_protocol
@@ -1005,7 +1005,7 @@ class PyslkApp(App):
 
     def _avatar_render(self, user_id: str):
         ai = self._avatar_images
-        if self.config.avatars != "on" or ai is None or not ai.enabled:
+        if not self.config.avatars or ai is None or not ai.enabled:
             return None
         team = self.router.active_team_id() or ""
         url = self._avatar_urls.get(team, {}).get(user_id)
@@ -1016,7 +1016,7 @@ class PyslkApp(App):
 
     async def _prefetch_avatars(self) -> None:
         ai = self._avatar_images
-        if self.config.avatars != "on" or ai is None or not ai.enabled:
+        if not self.config.avatars or ai is None or not ai.enabled:
             return
         team = self.router.active_team_id() or ""
         urls = self._avatar_urls.get(team, {})

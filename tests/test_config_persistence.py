@@ -26,14 +26,14 @@ def test_dumps_then_loads_preserves_core_fields():
         default_workspace="acme",
         theme="dracula",
         image_protocol="kitty",
-        emoji_images="off",
+        emoji_images=False,
         notify_keywords=["ping", "release"],
     )
     out = roundtrip(cfg)
     assert out.default_workspace == "acme"
     assert out.theme == "dracula"
     assert out.image_protocol == "kitty"
-    assert out.emoji_images == "off"
+    assert out.emoji_images is False
     assert out.notify_keywords == ["ping", "release"]
 
 
@@ -42,9 +42,21 @@ def test_image_preview_defaults_to_terminal_and_roundtrips():
     assert roundtrip(Config(image_preview="gui")).image_preview == "gui"
 
 
-def test_file_icons_defaults_auto_and_roundtrips():
-    assert Config().file_icons == "auto"
+def test_file_icons_default_auto_is_unset_and_roundtrips():
+    assert Config().file_icons is None                       # auto = unset
     assert roundtrip(Config(file_icons="emoji")).file_icons == "emoji"
+    assert "file_icons" not in Config().dumps()              # auto omitted from the file
+
+
+def test_nerd_font_and_toggles_use_booleans_with_auto_unset():
+    assert Config().nerd_font is None                        # auto = unset
+    assert Config().avatars is False and Config().emoji_images is True
+    out = roundtrip(Config(nerd_font=True, avatars=True))
+    assert out.nerd_font is True and out.avatars is True
+    assert "nerd_font" not in Config().dumps()               # auto omitted
+    # legacy string values still load
+    assert Config.loads('[appearance]\nnerd_font = "auto"\navatars = "on"').nerd_font is None
+    assert Config.loads('[appearance]\navatars = "on"').avatars is True
 
 
 def test_colored_names_defaults_off_and_roundtrips():

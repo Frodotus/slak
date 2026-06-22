@@ -59,10 +59,12 @@ def nerd_glyph_available(coverer=None) -> bool:
     return bool(coverer(PADLOCK_CODEPOINT))
 
 
-def use_nerd_glyphs(config_value: str, coverer=None) -> bool:
-    """Resolve the Nerd-glyph decision: ``on``/``off`` force it, ``auto`` detects."""
-    if config_value == "on":
+def use_nerd_glyphs(config_value, coverer=None) -> bool:
+    """Resolve the Nerd-glyph decision. ``True``/``False`` force it; ``None`` (auto,
+    i.e. the setting is unset) detects from installed fonts. Legacy ``on``/``off``/
+    ``auto`` strings are still accepted."""
+    if config_value is True or config_value == "on":
         return True
-    if config_value == "off":
+    if config_value is False or config_value == "off":
         return False
-    return nerd_glyph_available(coverer)
+    return nerd_glyph_available(coverer)  # None / "auto"

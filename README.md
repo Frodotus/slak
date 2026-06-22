@@ -51,7 +51,7 @@ full keybinding reference.
 - Inline images for files and attachments — kitty graphics on kitty, `▀` half-blocks
   on any truecolor terminal. Other files (PDFs, video, audio, archives, …) show as
   clickable cards (icon + name + size — type-specific Excel/PDF/Word/… glyphs with a
-  Nerd Font, else emoji; force either with `[appearance] file_icons = auto|nerd|emoji`);
+  Nerd Font, else emoji; force with `[appearance] file_icons = nerd` or `emoji` (unset = auto));
   text snippets render their preview as a code block.
 - `Space` previews the selected message's image full-screen. Default is an in-terminal
   preview (works over SSH); set `[appearance] image_preview = gui` to open it in an
@@ -59,7 +59,7 @@ full keybinding reference.
 - Colour themes (13 built-in incl. a true-black `oled` and terminal-following `ansi-dark`/`ansi-light`,
   plus `~/.config/slak/themes/*.toml` and `[theme]` overrides), switched live with
   `Ctrl+Y`; the sidebar is auto-kept contrasting (CIELAB).
-- Optional **user avatars** beside messages (`[appearance] avatars = on`, off by
+- Optional **user avatars** beside messages (`[appearance] avatars = true`, off by
   default) — rendered as 4×2 half-blocks in a left gutter.
 - Optional **coloured author names** (`[appearance] colored_names = true`, off by
   default) — each author name and `@mention` tinted by a deterministic hash of the
@@ -71,7 +71,7 @@ full keybinding reference.
   name/timestamp header (and avatar), so a back-and-forth reads as a block.
 - Private channels show a padlock — the single-width `` glyph when an installed
   font covers it (Nerd Font / FontAwesome, detected via fontconfig), else a narrow
-  `⚿` fallback (`[appearance] nerd_font = auto|on|off`).
+  `⚿` fallback (`[appearance] nerd_font = true` to force, `false` to disable; unset = auto-detect).
 
 **Realtime & integration**
 

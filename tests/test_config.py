@@ -152,8 +152,9 @@ def test_image_protocol_parsed():
 
 
 def test_emoji_images_default_on():
-    assert Config.loads("").emoji_images == "on"
+    assert Config.loads("").emoji_images is True
 
 
-def test_emoji_images_parsed():
-    assert Config.loads('[appearance]\nemoji_images = "off"').emoji_images == "off"
+def test_emoji_images_parsed_bool_or_legacy_string():
+    assert Config.loads('[appearance]\nemoji_images = false').emoji_images is False
+    assert Config.loads('[appearance]\nemoji_images = "off"').emoji_images is False  # legacy
