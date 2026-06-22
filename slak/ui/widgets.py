@@ -341,6 +341,12 @@ class MessagePane(VerticalScroll, can_focus=True):
         self._avatar_render = None
         self._color_names = False
         self._group_minutes = 0
+        self._reply_indicator = True
+
+    def set_reply_indicator(self, enabled: bool) -> None:
+        """Whether to show the ``💬 N replies`` indicator (off in the thread pane,
+        where the thread header already conveys it)."""
+        self._reply_indicator = enabled
 
     def set_color_names(self, enabled: bool) -> None:
         self._color_names = enabled
@@ -518,7 +524,7 @@ class MessagePane(VerticalScroll, can_focus=True):
         )
         if extras:
             body += "\n" + "\n".join(extras)
-        if getattr(m, "reply_count", 0):
+        if self._reply_indicator and getattr(m, "reply_count", 0):
             n = m.reply_count
             tts = m.thread_ts or m.ts  # the thread is keyed by the parent's ts
             plural = "y" if n == 1 else "ies"

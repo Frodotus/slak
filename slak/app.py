@@ -282,6 +282,8 @@ class PyslkApp(App):
                 pane.set_avatar_render(self._avatar_render)
                 pane.set_color_names(self.config.colored_names)
                 pane.set_group_minutes(self.config.group_within_minutes)
+                # the thread header already shows the reply count
+                pane.set_reply_indicator(pane_id == "#messages")
             except Exception:
                 pass
         self.query_one("#threads", ThreadList).set_custom_render(self._custom_render)
