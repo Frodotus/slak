@@ -116,7 +116,7 @@ class Config:
     # Booleans toggle features; "auto" is the *absence* of the setting (None).
     nerd_font: bool | None = None  # None = auto-detect; True/False force the padlock glyph
     avatars: bool = False  # show user avatars beside messages
-    emoji_images: bool = True  # kitty inline custom-emoji images
+    custom_emoji_images: bool = True  # render workspace custom emoji as inline images (kitty)
     image_preview: str = "terminal"  # terminal | gui — how Space previews an image
     file_icons: str | None = None  # None = auto; "nerd" | "emoji" force the icon style
     colored_names: bool = False  # tint each author's name by a hash of their user id
@@ -172,7 +172,11 @@ class Config:
             image_protocol=appearance.get("image_protocol", "auto"),
             nerd_font=_opt_flag(appearance.get("nerd_font")),
             avatars=_flag(appearance.get("avatars"), False),
-            emoji_images=_flag(appearance.get("emoji_images"), True),
+            # accept the old "emoji_images" key for backward compatibility
+            custom_emoji_images=_flag(
+                appearance.get("custom_emoji_images", appearance.get("emoji_images")),
+                True,
+            ),
             image_preview=appearance.get("image_preview", "terminal"),
             file_icons=(lambda v: None if v is None or str(v).lower() == "auto"
                         else str(v))(appearance.get("file_icons")),
@@ -216,7 +220,7 @@ class Config:
         appearance["group_within_minutes"] = self.group_within_minutes
         appearance["image_protocol"] = self.image_protocol
         appearance["avatars"] = self.avatars
-        appearance["emoji_images"] = self.emoji_images
+        appearance["custom_emoji_images"] = self.custom_emoji_images
         appearance["image_preview"] = self.image_preview
         appearance["colored_names"] = self.colored_names
         # auto = absent: only write these when explicitly forced

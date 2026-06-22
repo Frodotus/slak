@@ -828,7 +828,7 @@ class PyslkApp(App):
     # --- custom emoji images (kitty, best-effort) ------------------------
 
     def _init_emoji_images(self) -> None:
-        if not self.config.emoji_images:
+        if not self.config.custom_emoji_images:
             proto = "off"  # disabled -> custom emoji render as :name: text
         else:
             proto = self.config.image_protocol

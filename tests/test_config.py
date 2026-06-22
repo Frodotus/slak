@@ -151,10 +151,11 @@ def test_image_protocol_parsed():
     assert cfg.image_protocol == "kitty"
 
 
-def test_emoji_images_default_on():
-    assert Config.loads("").emoji_images is True
+def test_custom_emoji_images_default_on():
+    assert Config.loads("").custom_emoji_images is True
 
 
-def test_emoji_images_parsed_bool_or_legacy_string():
-    assert Config.loads('[appearance]\nemoji_images = false').emoji_images is False
-    assert Config.loads('[appearance]\nemoji_images = "off"').emoji_images is False  # legacy
+def test_custom_emoji_images_parsed_with_legacy_key():
+    assert Config.loads('[appearance]\ncustom_emoji_images = false').custom_emoji_images is False
+    # the old "emoji_images" key still loads
+    assert Config.loads('[appearance]\nemoji_images = "off"').custom_emoji_images is False

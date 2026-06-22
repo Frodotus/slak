@@ -26,14 +26,14 @@ def test_dumps_then_loads_preserves_core_fields():
         default_workspace="acme",
         theme="dracula",
         image_protocol="kitty",
-        emoji_images=False,
+        custom_emoji_images=False,
         notify_keywords=["ping", "release"],
     )
     out = roundtrip(cfg)
     assert out.default_workspace == "acme"
     assert out.theme == "dracula"
     assert out.image_protocol == "kitty"
-    assert out.emoji_images is False
+    assert out.custom_emoji_images is False
     assert out.notify_keywords == ["ping", "release"]
 
 
@@ -50,7 +50,7 @@ def test_file_icons_default_auto_is_unset_and_roundtrips():
 
 def test_nerd_font_and_toggles_use_booleans_with_auto_unset():
     assert Config().nerd_font is None                        # auto = unset
-    assert Config().avatars is False and Config().emoji_images is True
+    assert Config().avatars is False and Config().custom_emoji_images is True
     out = roundtrip(Config(nerd_font=True, avatars=True))
     assert out.nerd_font is True and out.avatars is True
     assert "nerd_font" not in Config().dumps()               # auto omitted
