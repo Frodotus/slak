@@ -216,6 +216,7 @@ class PyslkApp(App):
         self._media_images: MediaImages | None = None
         self._avatar_images: MediaImages | None = None
         self._preview_images: MediaImages | None = None
+        self._file_icon_images: MediaImages | None = None
         self._resolving: set[tuple[str, str]] = set()
         self.open_thread_ts: str = ""
         self.open_thread_channel: str = ""
@@ -778,6 +779,7 @@ class PyslkApp(App):
         self.run_worker(self._prefetch_emoji(), exclusive=False)
         self.run_worker(self._prefetch_images(), exclusive=False)
         self.run_worker(self._prefetch_avatars(), exclusive=False)
+        self.run_worker(self._prefetch_file_icons(), exclusive=False)
         self._resolve_bots()
 
     async def _sync_channel(self, client: SlackClient, channel_id: str) -> None:
@@ -859,7 +861,17 @@ class PyslkApp(App):
             Path.home() / ".cache" / "slak" / "previews", self._emit_raw,
             id_base=300_000,
         )
+        # generated colour file-type icons (4×2), keyed by category
+        self._file_icon_images = MediaImages(
+            media_proto, self._fetch_file_icon,
+            Path.home() / ".cache" / "slak" / "fileicons", self._emit_raw,
+            id_base=400_000, max_cols=AVATAR_COLS, max_rows=AVATAR_ROWS,
+        )
         debug(f"init emoji images: protocol={proto} enabled={self._emoji_images.enabled}")
+
+    async def _fetch_file_icon(self, key: str) -> bytes:
+        from slak.fileicons import icon_png
+        return icon_png(key.split(":", 1)[1])  # key = "fileicon:<category>"
 
     async def _fetch_image(self, url: str) -> bytes:
         # Slack `url_private` files need the workspace auth; the active client
@@ -912,10 +924,31 @@ class PyslkApp(App):
         return f"[reverse]:{name}:[/reverse]"  # chip until the image is ready
 
     def _image_render(self, url: str) -> str | None:
+        if url.startswith("fileicon:"):
+            return self._file_icon_markup(url)
         mi = self._media_images
         if mi is None or not mi.enabled:
             return None
         return mi.markup(url)
+
+    def _file_icon_markup(self, key: str) -> str | None:
+        # colour file-type icons only in auto mode; "emoji"/"nerd" force a glyph
+        fi = self._file_icon_images
+        if fi is None or not fi.enabled or self.config.file_icons is not None:
+            return None
+        return fi.markup(key)
+
+    async def _prefetch_file_icons(self) -> None:
+        from slak.fileicons import _STYLE
+        fi = self._file_icon_images
+        if fi is None or not fi.enabled or self.config.file_icons is not None:
+            return
+        changed = False
+        for cat in _STYLE:  # only ~11 icons; ensure them all once (cached)
+            if await fi.ensure(f"fileicon:{cat}"):
+                changed = True
+        if changed:
+            self._refresh_messages()
 
     async def _prefetch_images(self) -> None:
         mi = self._media_images

@@ -50,9 +50,10 @@ full keybinding reference.
   (headers, sections, fields, context, dividers, controls).
 - Inline images for files and attachments — kitty graphics on kitty, `▀` half-blocks
   on any truecolor terminal. Other files (PDFs, video, audio, archives, …) show as
-  clickable cards (icon + name + size — type-specific Excel/PDF/Word/… glyphs with a
-  Nerd Font, else emoji; force with `[appearance] file_icons = nerd` or `emoji` (unset = auto));
-  text snippets render their preview as a code block.
+  clickable cards (name + size + a colour file-type icon). The icon is a small
+  generated image (PDF/spreadsheet/doc/…) on image-capable terminals; without image
+  support it falls back to a Nerd Font glyph or emoji — force the glyph style with
+  `[appearance] file_icons = nerd` or `emoji`. Text snippets render as a code block.
 - `Space` previews the selected message's image full-screen. Default is an in-terminal
   preview (works over SSH); set `[appearance] image_preview = gui` to open it in an
   external viewer on the local machine instead.

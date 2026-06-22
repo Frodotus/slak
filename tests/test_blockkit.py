@@ -36,6 +36,21 @@ def test_nerd_file_icons_are_type_specific_with_emoji_fallback():
     assert _file_icon(pdf) == "📄"
 
 
+def test_file_card_uses_colour_image_icon_when_available():
+    raw = json.dumps({"files": [{
+        "name": "report.pdf", "mimetype": "application/pdf",
+        "url_private": "https://x/r.pdf", "size": 1000,
+    }]})
+
+    def icon_render(url):
+        return "ICON-R0\nICON-R1" if url == "fileicon:pdf" else None  # 2-row icon
+
+    out = "\n".join(render_extras(raw, name_of=str, image_render=icon_render))
+    assert "ICON-R0" in out and "ICON-R1" in out          # icon composed (gutter)
+    assert "report.pdf" in out and '[link="https://x/r.pdf"]' in out
+    assert "📄" not in out                                 # image icon used, not glyph
+
+
 def test_pdf_file_renders_as_clickable_card():
     raw = json.dumps({"files": [{
         "name": "report.pdf", "mimetype": "application/pdf",

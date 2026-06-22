@@ -31,6 +31,7 @@ from typing import Callable
 
 from slak.markup import escape
 
+from slak.fileicons import category_for
 from slak.render import code_block, render_message
 
 NameOf = Callable[[str], str]
@@ -125,67 +126,49 @@ def _file_image_url(f) -> str | None:
     return f.get("thumb_360") or f.get("thumb_480") or f.get("url_private")
 
 
-_ARCHIVE_TYPES = {"zip", "gz", "tar", "tgz", "rar", "7z", "bz2", "xz"}
-
-# File-type icons. Nerd Fonts carry brand/type glyphs (FontAwesome file-* range)
-# so xlsx→Excel, pdf→Adobe, docx→Word, etc.; without a Nerd Font we fall back to
-# the closest emoji. Toggled by set_file_icons() (wired from [appearance] nerd_font).
 _nerd_file_icons = False
+_ICON_COLS = 4  # cell width of a colour file-icon image (matches the gutter)
 
-_NERD_BY_EXT = {
-    "pdf": "",
-    "xls": "", "xlsx": "", "csv": "",
-    "doc": "", "docx": "", "rtf": "",
-    "ppt": "", "pptx": "",
-}
-_NERD_ARCHIVE = ""
+# Per-category glyphs used when colour image icons aren't rendered. Nerd Fonts
+# carry the FontAwesome file-* glyphs; otherwise we use the closest emoji.
 _NERD_BY_CAT = {
-    "image": "", "audio": "", "video": "",
-    "code": "", "text": "",
-}
-_NERD_DEFAULT = ""
-
-_EMOJI_BY_EXT = {
-    "pdf": "📄", "xls": "📊", "xlsx": "📊", "csv": "📊",
-    "doc": "📄", "docx": "📄", "rtf": "📄", "ppt": "📊", "pptx": "📊",
+    "pdf": chr(0xF1C1), "excel": chr(0xF1C3), "word": chr(0xF1C2),
+    "ppt": chr(0xF1C4), "archive": chr(0xF1C6), "image": chr(0xF1C5),
+    "audio": chr(0xF1C7), "video": chr(0xF1C8), "code": chr(0xF1C9),
+    "text": chr(0xF0F6), "other": chr(0xF15B),
 }
 _EMOJI_BY_CAT = {
-    "image": "🖼", "audio": "🎵", "video": "🎬", "code": "📝", "text": "📝",
+    "pdf": "📄", "excel": "📊", "word": "📄",
+    "ppt": "📊", "archive": "📦", "image": "🖼",
+    "audio": "🎵", "video": "🎬", "code": "📝",
+    "text": "📝", "other": "📎",
 }
-_EMOJI_DEFAULT = "📎"
 
 
 def set_file_icons(use_nerd: bool) -> None:
-    """Use Nerd Font file-type glyphs (brand-specific) vs emoji fallbacks."""
+    """Use Nerd Font file glyphs vs emoji for the (non-image) glyph fallback."""
     global _nerd_file_icons
     _nerd_file_icons = use_nerd
 
 
-def _file_ext(f: dict) -> str:
-    ft = str(f.get("filetype", "")).lower()
-    if ft:
-        return ft
-    name = str(f.get("name", ""))
-    return name.rsplit(".", 1)[-1].lower() if "." in name else ""
+def _file_icon(f: dict) -> str:
+    cat = category_for(name=f.get("name", ""), mimetype=f.get("mimetype", ""),
+                       filetype=f.get("filetype", ""), mode=f.get("mode", ""))
+    table = _NERD_BY_CAT if _nerd_file_icons else _EMOJI_BY_CAT
+    return table.get(cat, table["other"])
 
 
-def _file_category(f: dict) -> str:
-    mt = str(f.get("mimetype", "")).lower()
-    ft = _file_ext(f)
-    if mt.startswith("image/"):
-        return "image"
-    if mt.startswith("video/"):
-        return "video"
-    if mt.startswith("audio/"):
-        return "audio"
-    if ft in _ARCHIVE_TYPES or "zip" in mt or "compressed" in mt:
-        return "archive"
-    if f.get("mode") == "snippet" or ft in ("py", "js", "ts", "go", "rs", "c", "cpp",
-                                            "java", "rb", "sh", "json", "html", "css"):
-        return "code"
-    if mt.startswith("text/"):
-        return "text"
-    return "other"
+def _with_icon(icon_markup: str, name: str, meta: str) -> str:
+    """Compose a multi-row colour icon in a left gutter with name/size beside it."""
+    rows = icon_markup.split("\n")
+    texts = [t for t in (name, meta) if t]
+    gutter = " " * _ICON_COLS
+    out = []
+    for i in range(max(len(rows), len(texts))):
+        cell = rows[i] if i < len(rows) else gutter
+        txt = texts[i] if i < len(texts) else ""
+        out.append(f"{cell}  {txt}".rstrip())
+    return "\n".join(out)
 
 
 def _human_size(n) -> str:
@@ -200,25 +183,12 @@ def _human_size(n) -> str:
     return ""
 
 
-def _file_icon(f: dict) -> str:
-    ext = _file_ext(f)
-    cat = _file_category(f)
-    if _nerd_file_icons:
-        if ext in _NERD_BY_EXT:
-            return _NERD_BY_EXT[ext]
-        if cat == "archive":
-            return _NERD_ARCHIVE
-        return _NERD_BY_CAT.get(cat, _NERD_DEFAULT)
-    if ext in _EMOJI_BY_EXT:
-        return _EMOJI_BY_EXT[ext]
-    if cat == "archive":
-        return "📦"
-    return _EMOJI_BY_CAT.get(cat, _EMOJI_DEFAULT)
-
-
 def _render_file(f, image_render: ImageRender) -> str | None:
-    """Render one attached file: inline image, snippet (code block), or a
-    clickable card (icon + name + size linking to the file)."""
+    """Render one attached file: inline image, snippet (code block), or a card.
+
+    The card is a colour file-type icon (image, when ``image_render`` provides one
+    for the ``fileicon:<category>`` key) or a glyph fallback, plus the (clickable)
+    name and size."""
     if not isinstance(f, dict):
         return None
     name = f.get("name") or f.get("title") or "file"
@@ -227,19 +197,23 @@ def _render_file(f, image_render: ImageRender) -> str | None:
         url = _file_image_url(f)
         return _img(url, name, image_render) if url else None
 
+    cat = category_for(name=name, mimetype=mt, filetype=f.get("filetype", ""),
+                       mode=f.get("mode", ""))
     url = f.get("url_private") or f.get("permalink") or ""
-    head = f'[link="{url}"]{_file_icon(f)} {escape(name)}[/link]' if url \
-        else f"{_file_icon(f)} {escape(name)}"
-    size = _human_size(f.get("size"))
-    if size:
-        head += f"  [dim]{size}[/dim]"
+    name_link = f'[link="{url}"]{escape(name)}[/link]' if url else escape(name)
+    size = f"[dim]{_human_size(f.get('size'))}[/dim]" if _human_size(f.get("size")) else ""
 
-    # text snippets: show Slack's truncated preview as a code block
+    snippet = ""
     if f.get("mode") == "snippet" or mt.startswith("text/"):
         preview = html.unescape(f.get("preview") or "")
         if preview.strip():
-            return head + "\n" + code_block(preview)
-    return head
+            snippet = "\n" + code_block(preview)
+
+    icon = image_render(f"fileicon:{cat}") if image_render else None
+    if icon:  # colourful image icon in a gutter, name beside it
+        return _with_icon(icon, name_link, size) + snippet
+    head = f"{_file_icon(f)} {name_link}" + (f"  {size}" if size else "")
+    return head + snippet
 
 
 def _file_preview_url(f) -> str | None:
