@@ -47,13 +47,20 @@ Screen {
     padding: 1 1;
 }
 #sidebar ListView { background: transparent; }
-#sidebar ListItem { background: transparent; padding: 0 1; color: $text; }
+#sidebar ListItem { background: transparent; padding: 0 1; color: $text; border-left: thick transparent; }
 /* one line per channel — clip long names with an ellipsis, never wrap */
 #sidebar ListItem Static { width: 100%; text-wrap: nowrap; text-overflow: ellipsis; }
 /* breathing room above each section header */
 #sidebar ListItem.section-header { margin-top: 1; color: $text-muted; }
-#sidebar ListView:focus > ListItem.-highlight { background: $surface-dark; }
-#sidebar ListItem.-highlight { color: $text; text-style: bold; }
+/* Selected channel: a persistent accent-tinted band + accent bar, so it reads as
+ * "selected" even when the sidebar isn't focused — distinct from unread (bold+dot). */
+#sidebar ListItem.-highlight {
+    background: $accent 20%;
+    color: $text;
+    text-style: bold;
+    border-left: thick $accent;
+}
+#sidebar ListView:focus > ListItem.-highlight { background: $accent 40%; }
 
 /* Main column */
 #main { background: $bg; }
