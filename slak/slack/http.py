@@ -200,6 +200,13 @@ def parse_rtm_event(data: dict) -> Event | None:
         return Typing(channel_id=data.get("channel", ""), user_id=data.get("user", ""))
     if kind == "message" and data.get("subtype") == "message_changed":
         edited = data.get("message", {})
+        # deleting a thread parent arrives as message_changed wrapping a tombstone;
+        # that's a deletion, not an edit to the literal "This message was deleted"
+        if edited.get("subtype") == "tombstone" or edited.get("text") == TOMBSTONE_TEXT:
+            return MessageDeleted(
+                channel_id=data.get("channel", ""),
+                ts=edited.get("ts", ""),
+            )
         return MessageEdited(
             channel_id=data.get("channel", ""),
             ts=edited.get("ts", ""),

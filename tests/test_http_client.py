@@ -237,6 +237,26 @@ def test_parse_rtm_message_changed():
     assert (event.channel_id, event.ts, event.text) == ("C1", "5.0", "edited")
 
 
+def test_parse_rtm_message_changed_to_tombstone_is_a_delete():
+    # deleting a thread parent arrives as message_changed wrapping a tombstone —
+    # it must be treated as a deletion, not an edit to "This message was deleted"
+    from slak.slack import MessageDeleted
+    event = parse_rtm_event(
+        {
+            "type": "message",
+            "subtype": "message_changed",
+            "channel": "C1",
+            "message": {
+                "subtype": "tombstone",
+                "ts": "5.0",
+                "text": "This message was deleted.",
+            },
+        }
+    )
+    assert isinstance(event, MessageDeleted)
+    assert (event.channel_id, event.ts) == ("C1", "5.0")
+
+
 def test_parse_rtm_message_deleted():
     from slak.slack import MessageDeleted
     event = parse_rtm_event(
