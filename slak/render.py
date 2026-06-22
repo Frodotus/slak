@@ -44,6 +44,9 @@ _ITALIC = re.compile(r"(?<!\w)_([^_\n]+)_(?!\w)")
 _STRIKE = re.compile(r"~([^~\n]+)~")
 _CODE = re.compile(r"`([^`\n]+)`")
 _CUSTOM = re.compile(r":([a-zA-Z0-9_+\-]+):")
+# fenced code block ```…``` (across newlines) and the placeholder it's stashed as
+_FENCE = re.compile(r"```(.+?)```", re.S)
+_FENCE_SLOT = re.compile("\x05(\\d+)\x06")
 # sentinel for a coloured mention: \x00<color>\x00<display>\x01 (see render_message)
 _MENTION = re.compile("\x00([^\x00\x01]+)\x00([^\x01]*)\x01")
 # sentinel for a hyperlink: \x02<url>\x03<label>\x04 (so the markup survives escape)
@@ -56,6 +59,16 @@ def render_message(
     custom_render: Callable[[str], str | None] | None = None,
     color_of: Callable[[str], str | None] | None = None,
 ) -> str:
+    # 0. stash fenced code blocks FIRST so their content escapes all the markdown
+    #    passes below; re-injected (styled) at the very end.
+    code_blocks: list[str] = []
+
+    def _stash(m: re.Match) -> str:
+        code_blocks.append(m.group(1))
+        return f"\x05{len(code_blocks) - 1}\x06"
+
+    text = _FENCE.sub(_stash, text)
+
     def user(m: re.Match) -> str:
         name = name_of(m.group(1))
         if name == m.group(1) and m.group(2):
@@ -103,4 +116,18 @@ def render_message(
         text = _CUSTOM.sub(
             lambda m: custom_render(m.group(1)) or m.group(0), text
         )
+    # 7. re-inject fenced code blocks, rendered as styled (literal) code
+    if code_blocks:
+        text = _FENCE_SLOT.sub(
+            lambda m: _code_block(code_blocks[int(m.group(1))]), text
+        )
     return text
+
+
+def _code_block(code: str) -> str:
+    """Render fenced code as one styled line per source line — literal text on a
+    surface background with a left bar; no markdown/emoji/mention processing."""
+    code = html.unescape(code).strip("\n")
+    return "\n".join(
+        f"[dim]▏[/][on $surface] {escape(line)} [/]" for line in code.split("\n")
+    )

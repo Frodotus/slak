@@ -93,6 +93,24 @@ def test_brackets_parse_cleanly_as_textual_markup():
     assert content.plain == "set due=[$1::DATE, id=$2::UUID]"
 
 
+def test_fenced_code_block_renders_distinctly_without_markdown():
+    out = render_message("```\nfoo = *bar* <@U1>\n```", name_of)
+    assert "[on $surface]" in out      # styled as a code block
+    assert "[b]" not in out            # *bar* NOT turned into bold inside code
+    assert "@Alice" not in out         # mention NOT resolved inside code
+    assert "foo = *bar*" in out        # content kept literally
+
+
+def test_fenced_code_block_keeps_each_line():
+    out = render_message("```\nline1\nline2\n```", name_of)
+    rows = [r for r in out.split("\n") if "line" in r]
+    assert len(rows) == 2 and "line1" in rows[0] and "line2" in rows[1]
+
+
+def test_inline_code_still_works_alongside_fences():
+    assert r("use `x` here") == "use [reverse]x[/reverse] here"
+
+
 def test_bold_and_italic_become_rich_markup():
     assert r("*hi* _there_") == "[b]hi[/b] [i]there[/i]"
 

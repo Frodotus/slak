@@ -45,8 +45,9 @@ full keybinding reference.
 
 **Rendering**
 
-- Slack markdown, mentions, custom emoji (inline images on kitty), and Block Kit /
-  legacy attachments (headers, sections, fields, context, dividers, controls).
+- Slack markdown, mentions, custom emoji (inline images on kitty), fenced code
+  blocks (rendered literally on a tinted block), and Block Kit / legacy attachments
+  (headers, sections, fields, context, dividers, controls).
 - Inline images for files and attachments — kitty graphics on kitty, `▀` half-blocks
   on any truecolor terminal.
 - `Space` previews the selected message's image full-screen. Default is an in-terminal
