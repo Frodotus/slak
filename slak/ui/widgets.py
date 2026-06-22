@@ -611,13 +611,21 @@ class MessagePane(VerticalScroll, can_focus=True):
         mention_color = user_color if self._color_names else None
         text = render_message(m.text, self._name_of, self._custom_render,
                               color_of=mention_color)
-        # deleted: still show the original content, just flag it as removed
-        deleted = " [dim i](deleted)[/]" if getattr(m, "deleted", False) else ""
+        # deleted: show the original content with a marker, and nothing else —
+        # skip the tombstone's blocks/attachments/reactions (Slack's internal
+        # tombstone carries the "This message was deleted" notice as a block)
+        if getattr(m, "deleted", False):
+            marker = " [dim i](deleted)[/]"
+            if cont:
+                body = text + marker
+            else:
+                body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]{marker}\n{text}"
+            return self._with_avatar(m, body, continuation=cont)
         # grouped continuation: drop the repeated author + timestamp header
         if cont:
-            body = text + deleted
+            body = text
         else:
-            body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]{deleted}\n{text}"
+            body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{text}"
         extras = (
             render_extras(m.raw_json, self._name_of, self._custom_render,
                           self._image_render)

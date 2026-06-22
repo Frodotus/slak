@@ -110,7 +110,13 @@ def _message_from_dict(m: dict) -> RemoteMessage:
     # a deleted thread parent comes back as a tombstone — Slack replaces the body
     # with "This message was deleted"; drop that and flag it (we recover the
     # original text from cache and render our own "(deleted)" marker).
-    deleted = m.get("subtype") == "tombstone"
+    if m.get("subtype") or m.get("hidden") or m.get("tombstone"):
+        debug(  # diagnose how this server marks a deleted/special message (no body)
+            f"special msg ts={m.get('ts')} subtype={m.get('subtype')!r} "
+            f"hidden={m.get('hidden')!r} tombstone={m.get('tombstone')!r} "
+            f"keys={sorted(m.keys())}"
+        )
+    deleted = m.get("subtype") == "tombstone" or bool(m.get("tombstone"))
     return RemoteMessage(
         ts=m.get("ts", ""),
         user_id=m.get("user", m.get("bot_id", "")),
