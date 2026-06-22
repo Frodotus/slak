@@ -289,6 +289,39 @@ async def test_thread_reply_image_renders_and_is_covered_by_prefetch():
         assert any(m.ts == "150.0" for m in app._visible_messages())
 
 
+def test_dm_glyph_reflects_presence():
+    from slak.ui.widgets import Sidebar
+    s = Sidebar()
+    dm = RemoteChannel("D1", "bob", "dm", user="U2")
+    assert "○" in s._label(dm)            # unknown -> hollow dot
+    s._presence["U2"] = "active"
+    assert "#3ba55d" in s._label(dm)      # online -> green dot
+    s._presence["U2"] = "away"
+    assert "○" in s._label(dm)            # away -> hollow again
+
+
+async def test_dm_presence_subscribes_and_updates_the_dot():
+    from slak.slack import PresenceChanged
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general"), RemoteChannel("D1", "bob", "dm", user="U2")],
+        history={"C1": [RemoteMessage("1.0", "u", "hi")]},
+        users=[RemoteUser("U2", "bob")],
+    )
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"), config=Config())
+    async with app.run_test() as pilot:
+        for _ in range(5):
+            await pilot.pause()
+        assert "U2" in app.client.presence_subs        # subscribed to the DM peer
+        sidebar = app.query_one("#sidebar", Sidebar)
+        dm = next(c for c in sidebar._channels if c.id == "D1")
+        assert "○" in sidebar._label(dm)                # away until an event
+        await app.client.emit_event(PresenceChanged(presence="active", user="U2"))
+        for _ in range(3):
+            await pilot.pause()
+        assert "#3ba55d" in sidebar._label(dm)          # now shows online
+
+
 async def test_thread_reply_updates_parent_indicator_live():
     from slak.slack import NewMessage
     client = FakeSlackClient(

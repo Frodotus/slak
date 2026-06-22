@@ -69,6 +69,17 @@ async def test_list_all_public_channels_paginates_and_marks_membership():
     assert state["urls"][0].endswith("/api/conversations.list")
 
 
+def test_presence_events_single_and_batch():
+    from slak.slack import PresenceChanged
+    from slak.slack.http import presence_events
+    assert presence_events({"type": "presence_change", "user": "U1", "presence": "active"}) \
+        == [PresenceChanged(presence="active", user="U1")]
+    batch = presence_events(
+        {"type": "presence_change", "users": ["U1", "U2", "U3"], "presence": "away"})
+    assert [e.user for e in batch] == ["U1", "U2", "U3"]
+    assert all(e.presence == "away" for e in batch)
+
+
 async def test_join_channel_calls_conversations_join():
     seen = {}
 

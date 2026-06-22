@@ -141,6 +141,14 @@ def _user_from_member(m: dict) -> RemoteUser:
     )
 
 
+def presence_events(data: dict) -> list[PresenceChanged]:
+    """Peer ``presence_change`` → one PresenceChanged per user (handles the
+    ``batch_presence_aware`` ``users`` array as well as a single ``user``)."""
+    presence = data.get("presence", "away")
+    users = data.get("users") or ([data["user"]] if data.get("user") else [])
+    return [PresenceChanged(presence=presence, user=u) for u in users]
+
+
 def parse_rtm_event(data: dict) -> Event | None:
     """Parse one RTM frame into an Event, or None if we don't surface it.
 
@@ -396,6 +404,17 @@ class HttpSlackClient:
         except Exception:
             pass
 
+    async def subscribe_presence(self, user_ids: list[str]) -> None:
+        """Ask Slack to push ``presence_change`` for these users (replaces the
+        prior subscription set; re-send on reconnect). Best-effort."""
+        ws = self._ws
+        if ws is None:
+            return
+        try:
+            await ws.send(json.dumps({"type": "presence_sub", "ids": list(user_ids)}))
+        except Exception:
+            pass
+
     async def open_conversation(self, user_ids: list[str]) -> RemoteChannel:
         data = await self._call("conversations.open", users=",".join(user_ids))
         ch = data.get("channel", {})
@@ -516,6 +535,10 @@ class HttpSlackClient:
                         f"[ws] type={data.get('type')!r} "
                         f"subtype={data.get('subtype')!r} channel={data.get('channel', '')}"
                     )
+                    if data.get("type") == "presence_change":  # possibly a batch
+                        for ev in presence_events(data):
+                            await self._events.put(ev)
+                        continue
                     event = parse_rtm_event(data)
                     if event is not None:
                         await self._events.put(event)

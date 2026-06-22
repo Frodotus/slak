@@ -174,6 +174,7 @@ class Sidebar(ListView):
         self._channels: list[RemoteChannel] = []
         self._unread: set[str] = set()
         self._section_ids: dict[str, str] = {}  # item id -> section name
+        self._presence: dict[str, str] = {}  # DM peer user_id -> active/away
 
     async def set_channels(self, channels: list[RemoteChannel]) -> None:
         self._channels = channels
@@ -241,8 +242,29 @@ class Sidebar(ListView):
     def unread_ids(self) -> set[str]:
         return set(self._unread)
 
+    def set_presence(self, user_id: str, status: str) -> None:
+        """Update a DM peer's online status and repaint its row(s)."""
+        if self._presence.get(user_id) == status:
+            return
+        self._presence[user_id] = status
+        for ch in self._channels:
+            if ch.type == "dm" and ch.user == user_id:
+                try:
+                    item = self.get_child_by_id(ch.id, ListItem)
+                    item.query_one(Static).update(self._label(ch))
+                except Exception:
+                    continue
+
+    def _glyph(self, ch: RemoteChannel) -> str:
+        # 1:1 DMs show a presence dot: green when active, hollow/dim otherwise
+        if ch.type == "dm" and ch.user:
+            if self._presence.get(ch.user) == "active":
+                return "[#3ba55d]●[/]"
+            return "[dim]○[/]"
+        return glyph_for_type(ch.type)
+
     def _label(self, ch: RemoteChannel) -> str:
-        glyph = _channel_glyph(ch)
+        glyph = self._glyph(ch)
         name = escape(ch.name)
         if ch.id in self._unread:
             return f"[b]{glyph} {name}  ●[/]"

@@ -183,7 +183,8 @@ class Typing:
 
 @dataclass
 class PresenceChanged:
-    presence: str  # "auto" | "away"
+    presence: str  # self: "auto"/"away"; a peer: "active"/"away"
+    user: str = ""  # "" = the authenticated user (status bar); else a DM peer
 
 
 @dataclass
@@ -264,6 +265,8 @@ class SlackClient(Protocol):
 
     async def set_presence(self, presence: str) -> None: ...
 
+    async def subscribe_presence(self, user_ids: list[str]) -> None: ...
+
     async def set_snooze(self, minutes: int) -> None: ...
 
     async def end_dnd(self) -> None: ...
@@ -314,6 +317,7 @@ class FakeSlackClient:
         self.marks: list[tuple[str, str]] = []
         self.typing_sent: list[str] = []
         self.presence = "auto"
+        self.presence_subs: list[str] = []
         self.snoozes: list[int] = []
         self.dnd_ended = False
 
@@ -467,6 +471,9 @@ class FakeSlackClient:
 
     async def set_presence(self, presence: str) -> None:
         self.presence = presence
+
+    async def subscribe_presence(self, user_ids: list[str]) -> None:
+        self.presence_subs = list(user_ids)  # test introspection
 
     async def set_snooze(self, minutes: int) -> None:
         self.snoozes.append(minutes)

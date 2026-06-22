@@ -41,7 +41,8 @@ full keybinding reference.
   pinned `★ Starred` section, or config-glob sections (`[sections.<name>]`) as a
   fallback — grouped, collapsible, live-updated on section/star events.
 - A `⚑ Threads` row opens the threads view (your subscribed threads, newest-reply
-  first). DM and group-DM names are resolved to member display names.
+  first). DM and group-DM names are resolved to member display names, and each
+  1:1 DM shows a live presence dot — green when the person is online, hollow when away.
 
 **Rendering**
 

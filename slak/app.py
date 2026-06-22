@@ -229,6 +229,7 @@ class PyslkApp(App):
         self._search_matches: list[str] = []
         self._search_idx: int = 0
         self._presence: dict[str, tuple[str, float]] = {}  # team -> (presence, dnd_end)
+        self._user_presence: dict[str, dict[str, str]] = {}  # team -> {uid: active/away}
         self._typing: dict[str, float] = {}  # user_id -> expiry (monotonic)
         self._typing_timer = None
         self._last_typing_sent: float = 0.0  # monotonic, for ≥3s throttle
@@ -501,6 +502,7 @@ class PyslkApp(App):
         await self._load_unreads(client)
         await self._populate_sidebar()
         await self._load_thread_subscriptions(client)
+        await self._subscribe_presence(client)  # DM-peer online dots
         self.active_channel = None
         if channels:
             ids = {c.id for c in channels}
@@ -511,9 +513,25 @@ class PyslkApp(App):
             self.query_one("#messages", MessagePane).set_messages([], self._name_of)
         self._refresh_sidebar_unread()
         self._update_status()
+        # apply any presence we already know to the freshly-built sidebar
+        sidebar = self.query_one("#sidebar", Sidebar)
+        for uid, status in self._user_presence.get(client.team_id, {}).items():
+            sidebar.set_presence(uid, status)
         # discover-and-join: load all public channels in the background so the
         # finder can offer (and join) channels the user hasn't joined yet.
         self.run_worker(self._load_public_channels(client), exclusive=False)
+
+    async def _subscribe_presence(self, client: SlackClient) -> None:
+        """Subscribe to presence for the self user + every DM peer, so the sidebar
+        can show who's online. Connection-scoped — re-run on each (re)connect."""
+        peers = {ch.user for ch in self._sidebar_channels
+                 if ch.type == "dm" and ch.user}
+        ids = [client.self_user_id, *sorted(peers)] if client.self_user_id else sorted(peers)
+        if ids:
+            try:
+                await client.subscribe_presence(ids)
+            except Exception as exc:
+                self.log(f"presence subscribe failed: {exc!r}")
 
     def _resolve_dm_names(self, team_id: str, channels) -> None:
         """Give DM/MPIM channels human names — peer display name for a 1:1 DM,
@@ -1329,10 +1347,17 @@ class PyslkApp(App):
             elif isinstance(event, Typing):
                 self._on_typing(client, event)
             elif isinstance(event, PresenceChanged):
-                _, end = self._presence.get(client.team_id, ("auto", 0.0))
-                self._presence[client.team_id] = (event.presence, end)
-                if client is self.client:
-                    self._update_status()
+                if event.user:  # a DM peer's presence -> sidebar dot
+                    self._user_presence.setdefault(client.team_id, {})[event.user] = \
+                        event.presence
+                    if client is self.client:
+                        self.query_one("#sidebar", Sidebar).set_presence(
+                            event.user, event.presence)
+                else:  # the authenticated user's own presence -> status bar
+                    _, end = self._presence.get(client.team_id, ("auto", 0.0))
+                    self._presence[client.team_id] = (event.presence, end)
+                    if client is self.client:
+                        self._update_status()
             elif isinstance(event, DndChanged):
                 presence, _ = self._presence.get(client.team_id, ("auto", 0.0))
                 self._presence[client.team_id] = (
@@ -1343,6 +1368,8 @@ class PyslkApp(App):
             elif isinstance(event, Connected):
                 if client is self.client:
                     self._update_status()
+                # re-subscribe to DM-peer presence (subscription is connection-scoped)
+                self.run_worker(self._subscribe_presence(client), exclusive=False)
                 self.run_worker(self._maybe_backfill(client), exclusive=False)
 
     def on_unmount(self) -> None:
