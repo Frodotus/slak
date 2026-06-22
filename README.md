@@ -62,6 +62,9 @@ full keybinding reference.
   user id.
 - **Local nicknames** — `Ctrl+G` on a message renames its author just for you
   (stored by user id in `[nicknames]`); the nickname shows everywhere that name does.
+- Optional **author grouping** (`[appearance] group_within_minutes = N`, 0 = off) —
+  consecutive messages from the same author within N minutes drop the repeated
+  name/timestamp header (and avatar), so a back-and-forth reads as a block.
 - Private channels show a padlock — the single-width `` glyph when an installed
   font covers it (Nerd Font / FontAwesome, detected via fontconfig), else a narrow
   `⚿` fallback (`[appearance] nerd_font = auto|on|off`).

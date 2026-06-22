@@ -340,9 +340,27 @@ class MessagePane(VerticalScroll, can_focus=True):
         self._image_render = None
         self._avatar_render = None
         self._color_names = False
+        self._group_minutes = 0
 
     def set_color_names(self, enabled: bool) -> None:
         self._color_names = enabled
+
+    def set_group_minutes(self, minutes: int) -> None:
+        """Group consecutive same-author messages sent within ``minutes`` (0 = off)."""
+        self._group_minutes = minutes
+
+    def _is_continuation(self, m: RemoteMessage, prev: RemoteMessage | None) -> bool:
+        """Whether ``m`` continues ``prev`` (same author, within the group window)."""
+        if prev is None or self._group_minutes <= 0 or prev.user_id != m.user_id:
+            return False
+        try:
+            return float(m.ts) - float(prev.ts) <= self._group_minutes * 60
+        except (ValueError, TypeError):
+            return False
+
+    def _body_at(self, i: int) -> str:
+        prev = self._messages[i - 1] if i > 0 else None
+        return self._body(self._messages[i], prev)
 
     def set_custom_render(self, fn) -> None:
         self._custom_render = fn
@@ -358,7 +376,8 @@ class MessagePane(VerticalScroll, can_focus=True):
         self._name_of = name_of
         self._messages = list(messages)
         self._widgets = [
-            MessageWidget(self._body(m), classes="message", ts=m.ts) for m in messages
+            MessageWidget(self._body_at(i), classes="message", ts=m.ts)
+            for i, m in enumerate(messages)
         ]
         for w in self._widgets:
             self.mount(w)
@@ -369,7 +388,8 @@ class MessagePane(VerticalScroll, can_focus=True):
     def add_message(self, m: RemoteMessage, name_of=str) -> None:
         self._name_of = name_of
         follow = self._selected == len(self._messages) - 1
-        w = MessageWidget(self._body(m), classes="message", ts=m.ts)
+        prev = self._messages[-1] if self._messages else None
+        w = MessageWidget(self._body(m, prev), classes="message", ts=m.ts)
         self._messages.append(m)
         self._widgets.append(w)
         self.mount(w)
@@ -383,14 +403,14 @@ class MessagePane(VerticalScroll, can_focus=True):
         or a username resolves). Updates each widget's content from the messages
         already held — never reloads from cache — so reactions and other live
         fields are preserved, and there's no remove/remount churn."""
-        for widget, msg in zip(self._widgets, self._messages):
-            widget.update(self._body(msg))
+        for i, widget in enumerate(self._widgets):
+            widget.update(self._body_at(i))
 
     def apply_reaction(self, ts: str, emoji: str, user_id: str, added: bool) -> None:
         for i, m in enumerate(self._messages):
             if m.ts == ts:
                 _mutate_reaction(m, emoji, user_id, added)
-                self._widgets[i].update(self._body(m))
+                self._widgets[i].update(self._body_at(i))
                 return
 
     def update_text(self, ts: str, text: str) -> None:
@@ -398,7 +418,7 @@ class MessagePane(VerticalScroll, can_focus=True):
         for i, m in enumerate(self._messages):
             if m.ts == ts:
                 m.text = text
-                self._widgets[i].update(self._body(m))
+                self._widgets[i].update(self._body_at(i))
                 return
 
     def remove_message(self, ts: str) -> None:
@@ -463,7 +483,8 @@ class MessagePane(VerticalScroll, can_focus=True):
         for i, w in enumerate(self._widgets):
             w.set_class(i == self._selected, "-selected")
 
-    def _body(self, m: RemoteMessage) -> str:
+    def _body(self, m: RemoteMessage, prev: RemoteMessage | None = None) -> str:
+        cont = self._is_continuation(m, prev)
         resolved = self._name_of(m.user_id)
         # bots/apps have no real user — fall back to the message's username
         # override when the id didn't resolve to a known display name
@@ -474,7 +495,11 @@ class MessagePane(VerticalScroll, can_focus=True):
         mention_color = user_color if self._color_names else None
         text = render_message(m.text, self._name_of, self._custom_render,
                               color_of=mention_color)
-        body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{text}"
+        # grouped continuation: drop the repeated author + timestamp header
+        if cont:
+            body = text
+        else:
+            body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{text}"
         extras = (
             render_extras(m.raw_json, self._name_of, self._custom_render,
                           self._image_render)
@@ -496,16 +521,23 @@ class MessagePane(VerticalScroll, can_focus=True):
                 for r in m.reactions
             )
             body += f"\n{pills}"
-        return self._with_avatar(m, body)
+        return self._with_avatar(m, body, continuation=cont)
 
-    def _with_avatar(self, m: RemoteMessage, body: str) -> str:
+    def _with_avatar(self, m: RemoteMessage, body: str,
+                     continuation: bool = False) -> str:
         """Prefix the message with its author's avatar in a left gutter — the
-        avatar's rows align with the first body lines; the rest are indented."""
+        avatar's rows align with the first body lines; the rest are indented.
+        Grouped continuations skip the avatar but keep the gutter indent so they
+        line up under the author's first message."""
         avatar = self._avatar_render(m.user_id) if self._avatar_render else None
         if not avatar:
             return body
-        rows = avatar.split("\n")
         gutter = " " * AVATAR_COLS
+        if continuation:
+            return "\n".join(
+                f"{gutter}  {line}".rstrip() for line in body.split("\n")
+            )
+        rows = avatar.split("\n")
         lines = body.split("\n")
         out = []
         for i in range(max(len(rows), len(lines))):

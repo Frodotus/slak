@@ -90,6 +90,31 @@ def test_avatar_placeholder_uses_the_same_color_as_the_name():
     assert all(" " * AVATAR_COLS in r for r in rows)           # 4-cell block per row
 
 
+def test_author_grouping_suppresses_repeated_header():
+    from slak.ui.widgets import MessagePane
+    from slak.slack import RemoteMessage
+    pane = MessagePane()
+    pane.set_group_minutes(5)
+    m1 = RemoteMessage("100.0", "U1", "first")
+    m2 = RemoteMessage("160.0", "U1", "second")   # +60s, same author -> grouped
+    m3 = RemoteMessage("9999.0", "U1", "later")    # >5 min later -> own header
+    m4 = RemoteMessage("161.0", "U2", "other")     # different author -> own header
+    assert "[b]" in pane._body(m1, None)           # first shows the author header
+    assert "[b]" not in pane._body(m2, m1)         # continuation: no header
+    assert "second" in pane._body(m2, m1)
+    assert "[b]" in pane._body(m3, m2)             # outside the window
+    assert "[b]" in pane._body(m4, m1)             # different author
+
+
+def test_author_grouping_off_by_default():
+    from slak.ui.widgets import MessagePane
+    from slak.slack import RemoteMessage
+    pane = MessagePane()  # group window 0 -> never groups
+    m1 = RemoteMessage("100.0", "U1", "first")
+    m2 = RemoteMessage("101.0", "U1", "second")
+    assert "[b]" in pane._body(m2, m1)
+
+
 def test_splitter_width_clamps_and_respects_side():
     from slak.ui.widgets import splitter_width
     # side 'left': target left of splitter, width = mouse - target_x
