@@ -73,8 +73,9 @@ Screen {
 }
 #header-rule { height: 1; color: $hairline; background: $bg; }
 
-/* right padding 1 = just the scrollbar's column, so no empty gutter after it */
-#messages { padding: 1 1 1 2; background: $bg; }
+/* width:100% fills #main (1fr under-sizes it); right padding 0 puts the
+   scrollbar flush at the edge with no empty gutter after it */
+#messages { width: 100%; padding: 1 0 1 2; background: $bg; }
 /* message links: visibly a link (accent + underline), brighter on hover */
 #messages, #thread-messages {
     link-color: $accent;
