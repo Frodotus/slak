@@ -120,6 +120,7 @@ class Config:
     image_preview: str = "terminal"  # terminal | gui — how Space previews an image
     file_icons: str | None = None  # None = auto; "nerd" | "emoji" force the icon style
     colored_names: bool = False  # tint each author's name by a hash of their user id
+    keep_deleted_messages: bool = True  # keep a "(message deleted)" tombstone vs dropping it
     sidebar_width: int = 26  # channel-list width (cells); adjustable via the splitter
     thread_width: int = 42  # thread-panel width (cells); adjustable via the splitter
     notify_enabled: bool = True
@@ -181,6 +182,7 @@ class Config:
             file_icons=(lambda v: None if v is None or str(v).lower() == "auto"
                         else str(v))(appearance.get("file_icons")),
             colored_names=_flag(appearance.get("colored_names"), False),
+            keep_deleted_messages=_flag(appearance.get("keep_deleted_messages"), True),
             sidebar_width=int(appearance.get("sidebar_width", 26)),
             thread_width=int(appearance.get("thread_width", 42)),
             notify_enabled=bool(notif.get("enabled", True)),
@@ -223,6 +225,7 @@ class Config:
         appearance["custom_emoji_images"] = self.custom_emoji_images
         appearance["image_preview"] = self.image_preview
         appearance["colored_names"] = self.colored_names
+        appearance["keep_deleted_messages"] = self.keep_deleted_messages
         # auto = absent: only write these when explicitly forced
         if self.nerd_font is not None:
             appearance["nerd_font"] = self.nerd_font

@@ -1335,9 +1335,11 @@ class PyslkApp(App):
                 if client is self.client:
                     for pane_id in ("#messages", "#thread-messages"):
                         try:
-                            self.query_one(pane_id, MessagePane).remove_message(
-                                event.ts
-                            )
+                            pane = self.query_one(pane_id, MessagePane)
+                            if self.config.keep_deleted_messages:
+                                pane.mark_deleted(event.ts)
+                            else:
+                                pane.remove_message(event.ts)
                         except Exception:
                             pass
             elif isinstance(event, SectionsChanged):

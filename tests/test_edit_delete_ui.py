@@ -24,7 +24,7 @@ from slak.ui.widgets import EditModal, MessagePane
 from slak.workspace import WorkspaceRouter
 
 
-def make_app(author: str = "Uself"):
+def make_app(author: str = "Uself", config: Config | None = None):
     client = FakeSlackClient(
         team_id="T1",
         team_name="Acme",
@@ -34,7 +34,7 @@ def make_app(author: str = "Uself"):
     app = PyslkApp(
         router=WorkspaceRouter.single(client),
         cache=Cache.open(":memory:"),
-        config=Config(),
+        config=config or Config(),
     )
     return app, client
 
@@ -78,7 +78,7 @@ async def test_cannot_edit_someone_elses_message():
         assert not isinstance(app.screen, EditModal)
 
 
-async def test_delete_removes_message():
+async def test_delete_marks_message_removed_but_keeps_it():
     app, client = make_app(author="Uself")
     async with app.run_test() as pilot:
         for _ in range(3):
@@ -88,4 +88,22 @@ async def test_delete_removes_message():
             await pilot.pause()
         assert await client.history("C1") == []
         pane = app.query_one("#messages", MessagePane)
-        assert pane._messages == []
+        # the message stays in the view, just marked as removed (not dropped)
+        assert len(pane._messages) == 1
+        assert pane._messages[0].deleted
+        body = pane._body(pane._messages[0])
+        assert "message deleted" in body
+        assert "original text" not in body
+
+
+async def test_delete_drops_message_when_keep_disabled():
+    app, client = make_app(author="Uself", config=Config(keep_deleted_messages=False))
+    async with app.run_test() as pilot:
+        for _ in range(3):
+            await pilot.pause()
+        app.action_delete_message()
+        for _ in range(4):
+            await pilot.pause()
+        assert await client.history("C1") == []
+        pane = app.query_one("#messages", MessagePane)
+        assert pane._messages == []  # dropped entirely, no tombstone

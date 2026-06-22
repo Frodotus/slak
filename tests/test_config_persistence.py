@@ -64,6 +64,14 @@ def test_colored_names_defaults_off_and_roundtrips():
     assert roundtrip(Config(colored_names=True)).colored_names is True
 
 
+def test_keep_deleted_messages_defaults_on_and_roundtrips():
+    assert Config().keep_deleted_messages is True            # tombstone by default
+    assert roundtrip(Config(keep_deleted_messages=False)).keep_deleted_messages is False
+    assert Config.loads(
+        "[appearance]\nkeep_deleted_messages = false"
+    ).keep_deleted_messages is False
+
+
 def test_recent_reactions_roundtrip_and_record_is_mru():
     cfg = Config()
     assert cfg.recent_reactions == []

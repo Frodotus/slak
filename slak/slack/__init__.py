@@ -77,6 +77,7 @@ class RemoteMessage:
     reactions: list[Reaction] = field(default_factory=list)
     reply_count: int = 0  # thread replies (parent messages only)
     username: str = ""  # display-name override for bot/app messages
+    deleted: bool = False  # tombstone: kept in view, shown as "(message deleted)"
 
 
 @dataclass

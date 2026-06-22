@@ -507,6 +507,15 @@ class MessagePane(VerticalScroll, can_focus=True):
                 self._widgets[i].update(self._body_at(i))
                 return
 
+    def mark_deleted(self, ts: str) -> None:
+        """Mark a message as removed in place — keep a dim ``(message deleted)``
+        tombstone in the view rather than dropping it."""
+        for i, m in enumerate(self._messages):
+            if m.ts == ts:
+                m.deleted = True
+                self._widgets[i].update(self._body_at(i))
+                return
+
     def remove_message(self, ts: str) -> None:
         """Drop a deleted message and keep the selection valid."""
         for i, m in enumerate(self._messages):
@@ -599,6 +608,14 @@ class MessagePane(VerticalScroll, can_focus=True):
             resolved = m.username
         author = escape(resolved)
         author_tag = f"b {user_color(m.user_id)}" if self._color_names else "b"
+        if getattr(m, "deleted", False):
+            # tombstone: keep it in the view as a dim placeholder, no body/extras
+            placeholder = "[dim i](message deleted)[/]"
+            if cont:
+                body = placeholder
+            else:
+                body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{placeholder}"
+            return self._with_avatar(m, body, continuation=cont)
         mention_color = user_color if self._color_names else None
         text = render_message(m.text, self._name_of, self._custom_render,
                               color_of=mention_color)
