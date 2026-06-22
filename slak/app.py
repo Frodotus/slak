@@ -1197,7 +1197,12 @@ class PyslkApp(App):
                         self.query_one("#thread", ThreadPanel).add_reply(
                             msg, self._name_of
                         )
-                    return  # thread replies don't touch the main pane
+                    # update the parent's "💬 N replies" indicator live
+                    if client is self.client and event.channel_id == self.active_channel:
+                        self.query_one("#messages", MessagePane).bump_reply_count(
+                            msg.thread_ts
+                        )
+                    return
                 is_active_view = (
                     client is self.client and event.channel_id == self.active_channel
                 )

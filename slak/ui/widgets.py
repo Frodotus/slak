@@ -413,6 +413,16 @@ class MessagePane(VerticalScroll, can_focus=True):
                 self._widgets[i].update(self._body_at(i))
                 return
 
+    def bump_reply_count(self, parent_ts: str) -> bool:
+        """Increment a parent message's reply count and refresh its indicator
+        (live, when a thread reply arrives — no full reload needed)."""
+        for i, m in enumerate(self._messages):
+            if m.ts == parent_ts:
+                m.reply_count = (m.reply_count or 0) + 1
+                self._widgets[i].update(self._body_at(i))
+                return True
+        return False
+
     def update_text(self, ts: str, text: str) -> None:
         """Replace a message's body text in place (after an edit)."""
         for i, m in enumerate(self._messages):

@@ -255,6 +255,29 @@ async def test_panel_widths_restored_from_config_and_resize_persists(tmp_path):
         assert "thread_width = 55" in cfg_path.read_text()
 
 
+async def test_thread_reply_updates_parent_indicator_live():
+    from slak.slack import NewMessage
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [RemoteMessage("100.0", "u", "parent")]},
+    )
+    app = PyslkApp(router=WorkspaceRouter.single(client), cache=Cache.open(":memory:"), config=Config())
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        pane = app.query_one("#messages", MessagePane)
+        assert pane._messages[0].reply_count == 0
+        # a reply to the parent arrives over the realtime feed
+        await app.client.emit_event(
+            NewMessage("C1", RemoteMessage("150.0", "u2", "a reply", thread_ts="100.0"))
+        )
+        for _ in range(4):
+            await pilot.pause()
+        assert pane._messages[0].reply_count == 1            # bumped without a reload
+        assert "💬 1 reply" in pane._body_at(0)               # indicator shows it
+
+
 async def test_clicking_a_message_selects_it():
     client = FakeSlackClient(
         team_id="T1", team_name="Acme",
