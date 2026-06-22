@@ -23,7 +23,7 @@ carries the unofficial / TOS warning the overview requires.
 
 from __future__ import annotations
 
-__version__ = "26.6.1"
+__version__ = "26.6.2"
 
 AUTHOR = "Toni Leino"
 URL = "https://github.com/Frodotus/slak"
