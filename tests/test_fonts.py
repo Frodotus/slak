@@ -14,7 +14,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from slak.fonts import nerd_glyph_available, use_nerd_glyphs
+from slak.fonts import (
+    FILE_ICON_CODEPOINT,
+    PADLOCK_CODEPOINT,
+    file_glyphs_available,
+    nerd_glyph_available,
+    use_nerd_glyphs,
+)
 
 
 def test_nerd_glyph_available_checks_codepoint_coverage():
@@ -22,6 +28,16 @@ def test_nerd_glyph_available_checks_codepoint_coverage():
     uncovered = lambda cp: []                 # noqa: E731  nothing covers it
     assert nerd_glyph_available(covered) is True
     assert nerd_glyph_available(uncovered) is False
+
+
+def test_file_glyphs_checked_separately_from_padlock():
+    # a font with the padlock but NOT the file-* range (the real-world tofu case)
+    padlock_only = lambda cp: ["FontAwesome"] if cp == PADLOCK_CODEPOINT else []  # noqa: E731
+    assert nerd_glyph_available(padlock_only) is True       # padlock present
+    assert file_glyphs_available(padlock_only) is False     # file icons are NOT
+    both = lambda cp: ["NerdFont"]                          # noqa: E731
+    assert file_glyphs_available(both) is True
+    assert FILE_ICON_CODEPOINT != PADLOCK_CODEPOINT
 
 
 def test_use_nerd_glyphs_respects_config_override():

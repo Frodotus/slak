@@ -108,7 +108,7 @@ from slak.ui.widgets import (
     glyph_for_type,
     set_private_glyph,
 )
-from slak.fonts import use_nerd_glyphs
+from slak.fonts import file_glyphs_available, use_nerd_glyphs
 from slak.markup import escape
 from slak.ui.widgets import THREADS_ROW_ID
 from slak.sections import layout as section_layout, order_native_sections
@@ -282,9 +282,11 @@ class PyslkApp(App):
         yield Static("", id="status")
 
     async def on_mount(self) -> None:
-        nerd = use_nerd_glyphs(self.config.nerd_font)
-        set_private_glyph(nerd)
-        set_file_icons(resolve_file_icon_style(self.config.file_icons, nerd))
+        set_private_glyph(use_nerd_glyphs(self.config.nerd_font))
+        # file icons: auto follows *file-glyph* coverage (the padlock can be present
+        # while the file-* glyphs aren't — that showed tofu); config can force it.
+        set_file_icons(resolve_file_icon_style(
+            self.config.file_icons, file_glyphs_available()))
         self._init_emoji_images()
         for pane_id in ("#messages", "#thread-messages"):
             try:

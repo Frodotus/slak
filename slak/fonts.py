@@ -30,6 +30,7 @@ import functools
 import subprocess
 
 PADLOCK_CODEPOINT = 0xF023  # Nerd Font / FontAwesome lock glyph
+FILE_ICON_CODEPOINT = 0xF1C1  # FontAwesome file-pdf — representative of the file-* range
 
 
 def fonts_covering(codepoint: int) -> list[str]:
@@ -47,6 +48,20 @@ def fonts_covering(codepoint: int) -> list[str]:
 @functools.cache
 def _system_covers_padlock() -> bool:
     return bool(fonts_covering(PADLOCK_CODEPOINT))
+
+
+@functools.cache
+def _system_covers_file_icons() -> bool:
+    return bool(fonts_covering(FILE_ICON_CODEPOINT))
+
+
+def file_glyphs_available(coverer=None) -> bool:
+    """True if a font covers the file-type glyph range (so attachment icons render
+    instead of tofu). The padlock can be present while these aren't — check it
+    separately."""
+    if coverer is None:
+        return _system_covers_file_icons()
+    return bool(coverer(FILE_ICON_CODEPOINT))
 
 
 def nerd_glyph_available(coverer=None) -> bool:
