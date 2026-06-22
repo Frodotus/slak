@@ -598,6 +598,26 @@ async def test_open_thread_recovers_deleted_parent_text_from_cache():
         assert "parent msg" in body and "(deleted)" in body
 
 
+async def test_open_thread_flags_deleted_parent_known_only_from_cache():
+    app = make_thread_app()
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        # we recorded the delete locally; the server re-sends the parent as a
+        # tombstone our subtype check didn't flag (plain text, deleted=False)
+        app.cache.delete_message("C1", "100.0")
+        app.client._history["C1"][0] = RemoteMessage(
+            "100.0", "u", "This message was deleted")
+        app.query_one("#messages", MessagePane).focus()
+        await pilot.pause()
+        await app.action_open_thread()
+        for _ in range(3):
+            await pilot.pause()
+        parent = app.query_one("#thread-messages", MessagePane)._messages[0]
+        assert parent.deleted
+        assert parent.text == "parent msg"  # cache wins over Slack's tombstone text
+
+
 async def test_main_pane_hides_thread_replies():
     app = make_thread_app()
     async with app.run_test() as pilot:

@@ -293,6 +293,15 @@ class Cache:
         ).fetchone()
         return row["text"] if row else ""
 
+    def is_message_deleted(self, channel_id: str, ts: str) -> bool:
+        """Whether we've recorded this message as deleted (regardless of how the
+        server now represents it on re-fetch)."""
+        row = self._conn.execute(
+            "SELECT is_deleted FROM messages WHERE channel_id = ? AND ts = ?",
+            (channel_id, ts),
+        ).fetchone()
+        return bool(row["is_deleted"]) if row else False
+
     def delete_message(self, channel_id: str, ts: str) -> None:
         """Soft-delete a message so it stops appearing in ``get_messages``."""
         self._conn.execute(

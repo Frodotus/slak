@@ -1626,10 +1626,12 @@ class PyslkApp(App):
         except Exception as exc:
             self.log(f"thread load failed: {exc!r}")
             return
-        # a deleted parent arrives as a content-less tombstone — restore the
+        # a deleted parent arrives as a tombstone (Slack's "This message was
+        # deleted") — detect it via the subtype OR our own cache, then restore the
         # original text from cache so the thread shows it, like the channel does
         for r in replies:
-            if r.deleted and not r.text:
+            if r.deleted or self.cache.is_message_deleted(channel_id, r.ts):
+                r.deleted = True
                 r.text = self.cache.message_text(channel_id, r.ts)
         self.open_thread_channel = channel_id
         self.open_thread_ts = thread_ts
