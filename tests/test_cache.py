@@ -59,6 +59,18 @@ def test_get_messages_can_include_deleted(cache):
     assert msgs[1].is_deleted is True
 
 
+def test_deleted_thread_replies_excludes_parent_and_live_replies(cache):
+    cache.add_message(_msg("100.0", "parent"))
+    cache.add_message(_msg("101.0", "reply one", thread_ts="100.0"))
+    cache.add_message(_msg("102.0", "reply two", thread_ts="100.0"))
+    cache.delete_message("C1", "101.0")
+    cache.delete_message("C1", "100.0")  # parent deleted too
+    got = cache.deleted_thread_replies("C1", "100.0")
+    # only the deleted *reply* — not the parent, not the live reply
+    assert [m.ts for m in got] == ["101.0"]
+    assert got[0].is_deleted is True and got[0].text == "reply one"
+
+
 def test_add_message_upserts_in_place(cache):
     cache.add_message(_msg("100.0", "original"))
     cache.add_message(_msg("100.0", "edited", is_edited=True))

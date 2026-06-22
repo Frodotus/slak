@@ -618,6 +618,31 @@ async def test_open_thread_flags_deleted_parent_known_only_from_cache():
         assert parent.text == "parent msg"  # cache wins over Slack's tombstone text
 
 
+async def test_deleted_thread_reply_stays_as_tombstone_on_reopen():
+    app = make_thread_app()  # parent 100.0, reply 101.0 "first reply"
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        app.query_one("#messages", MessagePane).focus()
+        await pilot.pause()
+        await app.action_open_thread()  # caches the reply
+        for _ in range(3):
+            await pilot.pause()
+        # the reply is deleted: server now omits it, our cache marks it deleted
+        app.cache.delete_message("C1", "101.0")
+        app.client._history["C1"] = [
+            m for m in app.client._history["C1"] if m.ts != "101.0"
+        ]
+        await app.open_thread("C1", "100.0")  # reopen
+        for _ in range(3):
+            await pilot.pause()
+        pane = app.query_one("#thread-messages", MessagePane)
+        reply = next((m for m in pane._messages if m.ts == "101.0"), None)
+        assert reply is not None          # not dropped from the thread
+        assert reply.deleted
+        assert reply.text == "first reply"  # original content recovered
+
+
 async def test_main_pane_hides_thread_replies():
     app = make_thread_app()
     async with app.run_test() as pilot:

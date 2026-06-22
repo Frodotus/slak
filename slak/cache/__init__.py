@@ -293,6 +293,19 @@ class Cache:
         ).fetchone()
         return row["text"] if row else ""
 
+    def deleted_thread_replies(self, channel_id: str, thread_ts: str) -> list[Message]:
+        """Deleted replies of a thread (excluding the parent), oldest-first.
+
+        ``conversations.replies`` omits deleted replies entirely, so we re-merge
+        these from cache to keep their ``(deleted)`` tombstone in the thread."""
+        rows = self._conn.execute(
+            "SELECT * FROM messages "
+            "WHERE channel_id=? AND thread_ts=? AND ts<>? AND is_deleted=1 "
+            "ORDER BY CAST(ts AS REAL) ASC",
+            (channel_id, thread_ts, thread_ts),
+        ).fetchall()
+        return [self._row_to_message(r) for r in rows]
+
     def is_message_deleted(self, channel_id: str, ts: str) -> bool:
         """Whether we've recorded this message as deleted (regardless of how the
         server now represents it on re-fetch)."""

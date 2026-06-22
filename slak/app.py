@@ -1641,6 +1641,18 @@ class PyslkApp(App):
                 original = self.cache.message_text(channel_id, r.ts)
                 # ignore legacy rows that cached Slack's placeholder as the body
                 r.text = "" if original == TOMBSTONE_TEXT else original
+        # cache the live replies so a later deletion stays recoverable (the server
+        # drops deleted replies from conversations.replies entirely); never persist
+        # the deleted ones — that would overwrite their cached original content
+        persist_messages(self.cache, client.team_id, channel_id,
+                         [r for r in replies if not r.deleted])
+        # re-merge deleted replies the server omitted, as "(deleted)" tombstones
+        if self.config.keep_deleted_messages:
+            have = {r.ts for r in replies}
+            for m in self.cache.deleted_thread_replies(channel_id, thread_ts):
+                if m.ts not in have:
+                    replies.append(to_remote_message(m))
+            replies.sort(key=lambda r: float(r.ts or 0))
         self.open_thread_channel = channel_id
         self.open_thread_ts = thread_ts
         panel = self.query_one("#thread", ThreadPanel)
