@@ -69,6 +69,35 @@ def _fmt_time(ts: str) -> str:
         return ""
 
 
+def _day_key(ts: str):
+    """(year, day-of-year) in local time, or None for a bad timestamp."""
+    try:
+        t = time.localtime(float(ts))
+    except (ValueError, OverflowError, TypeError):
+        return None
+    return (t.tm_year, t.tm_yday)
+
+
+def _day_label(ts: str) -> str:
+    """A human day label for a divider: Today / Yesterday / a date."""
+    try:
+        t = time.localtime(float(ts))
+    except (ValueError, OverflowError, TypeError):
+        return ""
+    now = time.localtime()
+    if (t.tm_year, t.tm_yday) == (now.tm_year, now.tm_yday):
+        return "Today"
+    yest = time.localtime(time.time() - 86400)
+    if (t.tm_year, t.tm_yday) == (yest.tm_year, yest.tm_yday):
+        return "Yesterday"
+    fmt = "%A, %B %d" if t.tm_year == now.tm_year else "%B %d, %Y"
+    return time.strftime(fmt, t).replace(" 0", " ")  # June 06 -> June 6
+
+
+def _day_divider(ts: str) -> str:
+    return f"[dim]─────────  {_day_label(ts)}  ─────────[/]"
+
+
 def _rail_markup(initials: list[str], active: int, unread: list[bool]) -> str:
     """Workspaces in a single horizontal row (active bold, unread dotted).
     Each tab is a click action that switches to that workspace."""
@@ -522,7 +551,9 @@ class MessagePane(VerticalScroll, can_focus=True):
             w.set_class(i == self._selected, "-selected")
 
     def _body(self, m: RemoteMessage, prev: RemoteMessage | None = None) -> str:
-        cont = self._is_continuation(m, prev)
+        # divider above the first message of a new day (not at the very top)
+        new_day = prev is not None and _day_key(m.ts) != _day_key(prev.ts)
+        cont = self._is_continuation(m, prev) and not new_day
         resolved = self._name_of(m.user_id)
         # bots/apps have no real user — fall back to the message's username
         # override when the id didn't resolve to a known display name
@@ -559,7 +590,10 @@ class MessagePane(VerticalScroll, can_focus=True):
                 for r in m.reactions
             )
             body += f"\n{pills}"
-        return self._with_avatar(m, body, continuation=cont)
+        composed = self._with_avatar(m, body, continuation=cont)
+        if new_day:  # a day divider above the first message of each day
+            composed = f"{_day_divider(m.ts)}\n{composed}"
+        return composed
 
     def _with_avatar(self, m: RemoteMessage, body: str,
                      continuation: bool = False) -> str:

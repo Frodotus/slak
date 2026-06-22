@@ -90,6 +90,21 @@ def test_avatar_placeholder_uses_the_same_color_as_the_name():
     assert all(" " * AVATAR_COLS in r for r in rows)           # 4-cell block per row
 
 
+def test_day_divider_only_on_day_change():
+    from slak.ui.widgets import MessagePane, _day_key
+    from slak.slack import RemoteMessage
+    pane = MessagePane()
+    day1 = "1700000000.0"
+    same_day = str(float(day1) + 300)        # +5 min, same day
+    next_day = str(float(day1) + 90000)       # +25 h, different day
+    assert _day_key(day1) != _day_key(next_day)
+    assert _day_key(day1) == _day_key(same_day)
+    m1 = RemoteMessage(day1, "u", "first")
+    assert "─" not in pane._body(m1, None)                    # no divider at the very top
+    assert "─" not in pane._body(RemoteMessage(same_day, "u", "x"), m1)   # same day: none
+    assert "─" in pane._body(RemoteMessage(next_day, "u", "y"), m1)       # new day: divider
+
+
 def test_author_grouping_suppresses_repeated_header():
     from slak.ui.widgets import MessagePane
     from slak.slack import RemoteMessage
