@@ -282,6 +282,17 @@ class Cache:
         )
         self._conn.commit()
 
+    def message_text(self, channel_id: str, ts: str) -> str:
+        """The stored body for a message (even if soft-deleted), or '' if unknown.
+
+        Used to recover the original content of a deleted thread parent, which the
+        server returns as a content-less tombstone."""
+        row = self._conn.execute(
+            "SELECT text FROM messages WHERE channel_id = ? AND ts = ?",
+            (channel_id, ts),
+        ).fetchone()
+        return row["text"] if row else ""
+
     def delete_message(self, channel_id: str, ts: str) -> None:
         """Soft-delete a message so it stops appearing in ``get_messages``."""
         self._conn.execute(

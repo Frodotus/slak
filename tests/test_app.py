@@ -578,6 +578,26 @@ def make_thread_app() -> PyslkApp:
     )
 
 
+async def test_open_thread_recovers_deleted_parent_text_from_cache():
+    app = make_thread_app()
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        # the parent's original text is cached; it then gets deleted, so the
+        # server returns it as a content-less tombstone on the next fetch
+        app.client._history["C1"][0] = RemoteMessage("100.0", "u", "", deleted=True)
+        app.query_one("#messages", MessagePane).focus()
+        await pilot.pause()
+        await app.action_open_thread()
+        for _ in range(3):
+            await pilot.pause()
+        parent = app.query_one("#thread-messages", MessagePane)._messages[0]
+        assert parent.deleted
+        assert parent.text == "parent msg"  # recovered from cache, not "deleted"
+        body = app.query_one("#thread-messages", MessagePane)._body(parent)
+        assert "parent msg" in body and "(deleted)" in body
+
+
 async def test_main_pane_hides_thread_replies():
     app = make_thread_app()
     async with app.run_test() as pilot:

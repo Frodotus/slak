@@ -1626,6 +1626,11 @@ class PyslkApp(App):
         except Exception as exc:
             self.log(f"thread load failed: {exc!r}")
             return
+        # a deleted parent arrives as a content-less tombstone — restore the
+        # original text from cache so the thread shows it, like the channel does
+        for r in replies:
+            if r.deleted and not r.text:
+                r.text = self.cache.message_text(channel_id, r.ts)
         self.open_thread_channel = channel_id
         self.open_thread_ts = thread_ts
         panel = self.query_one("#thread", ThreadPanel)

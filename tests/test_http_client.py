@@ -251,6 +251,16 @@ def test_parse_rtm_message_deleted():
     assert (event.channel_id, event.ts) == ("C1", "5.0")
 
 
+def test_message_from_dict_marks_tombstone_deleted():
+    # a deleted thread parent comes back from conversations.replies as a tombstone
+    from slak.slack.http import _message_from_dict
+    m = _message_from_dict(
+        {"ts": "5.0", "subtype": "tombstone", "text": "This message was deleted."}
+    )
+    assert m.deleted is True
+    assert m.text == ""  # drop Slack's placeholder; our renderer adds "(deleted)"
+
+
 async def test_update_message_calls_chat_update():
     seen = {}
 

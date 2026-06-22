@@ -107,10 +107,14 @@ async def fetch_team_info(access_token: str, cookie: str, transport=None) -> dic
 
 
 def _message_from_dict(m: dict) -> RemoteMessage:
+    # a deleted thread parent comes back as a tombstone — Slack replaces the body
+    # with "This message was deleted"; drop that and flag it (we recover the
+    # original text from cache and render our own "(deleted)" marker).
+    deleted = m.get("subtype") == "tombstone"
     return RemoteMessage(
         ts=m.get("ts", ""),
         user_id=m.get("user", m.get("bot_id", "")),
-        text=m.get("text", ""),
+        text="" if deleted else m.get("text", ""),
         thread_ts=m.get("thread_ts", ""),
         raw_json=json.dumps(m),
         reactions=[
@@ -120,6 +124,7 @@ def _message_from_dict(m: dict) -> RemoteMessage:
         ],
         reply_count=int(m.get("reply_count", 0)),
         username=m.get("username") or m.get("bot_profile", {}).get("name", ""),
+        deleted=deleted,
     )
 
 
