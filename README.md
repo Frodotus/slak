@@ -69,8 +69,9 @@ full keybinding reference.
 - **Local nicknames** — `Ctrl+G` on a message renames its author just for you
   (stored by user id in `[nicknames]`); the nickname shows everywhere that name does.
 - **Day dividers** between messages from different days (Today / Yesterday / date).
-- Deleted messages stay in place as a dim `(message deleted)` tombstone by default;
-  set `[appearance] keep_deleted_messages = false` to drop them from the view instead.
+- Deleted messages stay in place with their original content kept and a dim
+  `(deleted)` marker by default; set `[appearance] keep_deleted_messages = false`
+  to drop them from the view instead.
 - Optional **author grouping** (`[appearance] group_within_minutes = N`, 0 = off) —
   consecutive messages from the same author within N minutes drop the repeated
   name/timestamp header (and avatar), so a back-and-forth reads as a block.

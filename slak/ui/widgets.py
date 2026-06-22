@@ -608,22 +608,16 @@ class MessagePane(VerticalScroll, can_focus=True):
             resolved = m.username
         author = escape(resolved)
         author_tag = f"b {user_color(m.user_id)}" if self._color_names else "b"
-        if getattr(m, "deleted", False):
-            # tombstone: keep it in the view as a dim placeholder, no body/extras
-            placeholder = "[dim i](message deleted)[/]"
-            if cont:
-                body = placeholder
-            else:
-                body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{placeholder}"
-            return self._with_avatar(m, body, continuation=cont)
         mention_color = user_color if self._color_names else None
         text = render_message(m.text, self._name_of, self._custom_render,
                               color_of=mention_color)
+        # deleted: still show the original content, just flag it as removed
+        deleted = " [dim i](deleted)[/]" if getattr(m, "deleted", False) else ""
         # grouped continuation: drop the repeated author + timestamp header
         if cont:
-            body = text
+            body = text + deleted
         else:
-            body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]\n{text}"
+            body = f"[{author_tag}]{author}[/]  [dim]{_fmt_time(m.ts)}[/]{deleted}\n{text}"
         extras = (
             render_extras(m.raw_json, self._name_of, self._custom_render,
                           self._image_render)

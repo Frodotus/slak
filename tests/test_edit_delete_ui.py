@@ -92,8 +92,8 @@ async def test_delete_marks_message_removed_but_keeps_it():
         assert len(pane._messages) == 1
         assert pane._messages[0].deleted
         body = pane._body(pane._messages[0])
-        assert "message deleted" in body
-        assert "original text" not in body
+        assert "original text" in body  # the content is still shown
+        assert "(deleted)" in body       # ...just flagged as removed
 
 
 async def test_delete_drops_message_when_keep_disabled():
