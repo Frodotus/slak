@@ -86,6 +86,7 @@ class Config:
     avatars: str = "off"  # on | off — show user avatars beside messages
     emoji_images: str = "on"  # on | off — kitty inline custom-emoji images
     image_preview: str = "terminal"  # terminal | gui — how Space previews an image
+    file_icons: str = "auto"  # auto | nerd | emoji — attachment file-type icon style
     colored_names: bool = False  # tint each author's name by a hash of their user id
     sidebar_width: int = 26  # channel-list width (cells); adjustable via the splitter
     thread_width: int = 42  # thread-panel width (cells); adjustable via the splitter
@@ -141,6 +142,7 @@ class Config:
             avatars=appearance.get("avatars", "off"),
             emoji_images=appearance.get("emoji_images", "on"),
             image_preview=appearance.get("image_preview", "terminal"),
+            file_icons=appearance.get("file_icons", "auto"),
             colored_names=bool(appearance.get("colored_names", False)),
             sidebar_width=int(appearance.get("sidebar_width", 26)),
             thread_width=int(appearance.get("thread_width", 42)),
@@ -184,6 +186,7 @@ class Config:
         appearance["avatars"] = self.avatars
         appearance["emoji_images"] = self.emoji_images
         appearance["image_preview"] = self.image_preview
+        appearance["file_icons"] = self.file_icons
         appearance["colored_names"] = self.colored_names
         appearance["sidebar_width"] = self.sidebar_width
         appearance["thread_width"] = self.thread_width

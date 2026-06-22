@@ -42,6 +42,11 @@ def test_image_preview_defaults_to_terminal_and_roundtrips():
     assert roundtrip(Config(image_preview="gui")).image_preview == "gui"
 
 
+def test_file_icons_defaults_auto_and_roundtrips():
+    assert Config().file_icons == "auto"
+    assert roundtrip(Config(file_icons="emoji")).file_icons == "emoji"
+
+
 def test_colored_names_defaults_off_and_roundtrips():
     assert Config().colored_names is False
     assert roundtrip(Config(colored_names=True)).colored_names is True

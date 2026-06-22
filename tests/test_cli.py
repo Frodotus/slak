@@ -23,6 +23,14 @@ def _tok(team_id):
     return Token(access_token="x", cookie="c", team_id=team_id, team_name=team_id)
 
 
+def test_resolve_file_icon_style():
+    from slak.app import resolve_file_icon_style
+    assert resolve_file_icon_style("nerd", False) is True     # forced on
+    assert resolve_file_icon_style("emoji", True) is False    # forced off
+    assert resolve_file_icon_style("auto", True) is True      # follows detection
+    assert resolve_file_icon_style("auto", False) is False
+
+
 def test_choose_active_prefers_last_used_workspace():
     tokens = [_tok("T1"), _tok("T2"), _tok("T3")]
     assert choose_active(tokens, Config(last_workspace="T2")) == "T2"

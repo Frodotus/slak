@@ -117,6 +117,16 @@ from slak import themes
 from slak.workspace import WorkspaceRouter
 
 
+def resolve_file_icon_style(mode: str, nerd_available: bool) -> bool:
+    """Whether to use Nerd Font file icons: ``auto`` follows font detection,
+    ``nerd``/``emoji`` force it on/off."""
+    if mode == "nerd":
+        return True
+    if mode == "emoji":
+        return False
+    return nerd_available  # "auto"
+
+
 def _open_with_os(path: str) -> None:
     """Open a local file with the platform's default application."""
     import subprocess
@@ -274,7 +284,7 @@ class PyslkApp(App):
     async def on_mount(self) -> None:
         nerd = use_nerd_glyphs(self.config.nerd_font)
         set_private_glyph(nerd)
-        set_file_icons(nerd)  # brand file-type glyphs when a Nerd Font is present
+        set_file_icons(resolve_file_icon_style(self.config.file_icons, nerd))
         self._init_emoji_images()
         for pane_id in ("#messages", "#thread-messages"):
             try:
