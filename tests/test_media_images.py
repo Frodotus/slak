@@ -90,7 +90,7 @@ def test_avatar_placeholder_uses_the_same_color_as_the_name():
     assert all(" " * AVATAR_COLS in r for r in rows)           # 4-cell block per row
 
 
-def test_day_divider_only_on_day_change():
+def test_day_divider_is_a_centered_widget_only_on_day_change():
     from slak.ui.widgets import MessagePane, _day_key
     from slak.slack import RemoteMessage
     pane = MessagePane()
@@ -99,10 +99,16 @@ def test_day_divider_only_on_day_change():
     next_day = str(float(day1) + 90000)       # +25 h, different day
     assert _day_key(day1) != _day_key(next_day)
     assert _day_key(day1) == _day_key(same_day)
-    m1 = RemoteMessage(day1, "u", "first")
-    assert "─" not in pane._body(m1, None)                    # no divider at the very top
-    assert "─" not in pane._body(RemoteMessage(same_day, "u", "x"), m1)   # same day: none
-    assert "─" in pane._body(RemoteMessage(next_day, "u", "y"), m1)       # new day: divider
+    pane._messages = [RemoteMessage(day1, "u", "first"),
+                      RemoteMessage(same_day, "u", "x"),
+                      RemoteMessage(next_day, "u", "y")]
+    # the divider is its own widget so CSS can centre it — not baked into the body
+    assert "─" not in pane._body(pane._messages[2], pane._messages[1])
+    assert pane._divider_for(0) is None     # never at the very top
+    assert pane._divider_for(1) is None     # same day: none
+    d = pane._divider_for(2)                 # new day: a centred divider widget
+    assert d is not None
+    assert "day-divider" in d.classes
 
 
 def test_author_grouping_suppresses_repeated_header():

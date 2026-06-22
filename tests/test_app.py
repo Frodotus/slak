@@ -83,7 +83,7 @@ async def test_event_consumer_survives_a_handler_exception():
         for _ in range(4):
             await pilot.pause()
         pane = app.query_one("#messages", MessagePane)
-        assert len(pane.children) == 2  # seeded + "still works" (loop didn't die)
+        assert len(pane._widgets) == 2  # seeded + "still works" (loop didn't die)
 
 
 async def test_sidebar_channel_names_clip_not_wrap():
@@ -418,7 +418,7 @@ async def test_typing_then_enter_posts_and_renders():
         assert history[-1].text == "hey"
         # the event worker consumed the NewMessage and mounted it (1 seeded + 1 new)
         pane = app.query_one("#messages", MessagePane)
-        assert len(pane.children) == 2
+        assert len(pane._widgets) == 2
 
 
 def make_multi_app() -> PyslkApp:
@@ -672,7 +672,7 @@ async def test_replying_in_thread_posts_threaded_and_appends():
         replies = await app.client.thread_replies("C1", "100.0")
         assert replies[-1].text == "yo"
         assert replies[-1].thread_ts == "100.0"
-        assert len(app.query_one("#thread-messages", MessagePane).children) == 3
+        assert len(app.query_one("#thread-messages", MessagePane)._widgets) == 3
 
 
 async def test_user_names_resolved_on_load():

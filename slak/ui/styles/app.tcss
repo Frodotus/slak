@@ -83,6 +83,8 @@ Screen {
     link-background-hover: $surface;
 }
 .message { padding: 0 0 1 0; }
+/* day divider: a centred, dim rule between messages of different days */
+.day-divider { width: 1fr; text-align: center; color: $text-muted; padding: 0 0 1 0; }
 /* selection shows when the pane is focused or while searching (borderless: tint + bar) */
 #messages:focus .message.-selected,
 #messages.-searching .message.-selected {

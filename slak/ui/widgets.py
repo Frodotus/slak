@@ -94,8 +94,8 @@ def _day_label(ts: str) -> str:
     return time.strftime(fmt, t).replace(" 0", " ")  # June 06 -> June 6
 
 
-def _day_divider(ts: str) -> str:
-    return f"[dim]─────────  {_day_label(ts)}  ─────────[/]"
+def _day_divider_text(ts: str) -> str:
+    return f"───  {_day_label(ts)}  ───"
 
 
 def _rail_markup(initials: list[str], active: int, unread: list[bool]) -> str:
@@ -385,6 +385,7 @@ class MessagePane(VerticalScroll, can_focus=True):
         super().__init__(*args, **kwargs)
         self._messages: list[RemoteMessage] = []
         self._widgets: list[Static] = []
+        self._dividers: list[Static | None] = []
         self._selected: int = -1
         self._name_of = str
         self._custom_render = None
@@ -419,6 +420,16 @@ class MessagePane(VerticalScroll, can_focus=True):
         prev = self._messages[i - 1] if i > 0 else None
         return self._body(self._messages[i], prev)
 
+    def _divider_for(self, i: int) -> "Static | None":
+        """A centred day-divider widget when message ``i`` opens a new day vs the
+        one before it, else ``None`` (never above the very first message). It's a
+        separate widget so CSS ``text-align: center`` can centre it across the pane."""
+        if i <= 0 or i >= len(self._messages):
+            return None
+        if _day_key(self._messages[i].ts) == _day_key(self._messages[i - 1].ts):
+            return None
+        return Static(_day_divider_text(self._messages[i].ts), classes="day-divider")
+
     def set_custom_render(self, fn) -> None:
         self._custom_render = fn
 
@@ -432,11 +443,15 @@ class MessagePane(VerticalScroll, can_focus=True):
         self.remove_children()
         self._name_of = name_of
         self._messages = list(messages)
-        self._widgets = [
-            MessageWidget(self._body_at(i), classes="message", ts=m.ts)
-            for i, m in enumerate(messages)
-        ]
-        for w in self._widgets:
+        self._widgets = []
+        self._dividers = []
+        for i, m in enumerate(self._messages):
+            d = self._divider_for(i)
+            self._dividers.append(d)
+            if d is not None:
+                self.mount(d)
+            w = MessageWidget(self._body_at(i), classes="message", ts=m.ts)
+            self._widgets.append(w)
             self.mount(w)
         self._selected = len(self._messages) - 1
         self._apply_selection()
@@ -446,8 +461,12 @@ class MessagePane(VerticalScroll, can_focus=True):
         self._name_of = name_of
         follow = self._selected == len(self._messages) - 1
         prev = self._messages[-1] if self._messages else None
-        w = MessageWidget(self._body(m, prev), classes="message", ts=m.ts)
         self._messages.append(m)
+        d = self._divider_for(len(self._messages) - 1)
+        self._dividers.append(d)
+        if d is not None:
+            self.mount(d)
+        w = MessageWidget(self._body(m, prev), classes="message", ts=m.ts)
         self._widgets.append(w)
         self.mount(w)
         if follow:
@@ -493,11 +512,30 @@ class MessagePane(VerticalScroll, can_focus=True):
         for i, m in enumerate(self._messages):
             if m.ts == ts:
                 self._widgets[i].remove()
+                if self._dividers[i] is not None:
+                    self._dividers[i].remove()
                 del self._messages[i]
                 del self._widgets[i]
+                del self._dividers[i]
+                self._refresh_divider(i)  # the follower may now open/close a day
                 self._selected = min(self._selected, len(self._messages) - 1)
                 self._apply_selection()
                 return
+
+    def _refresh_divider(self, i: int) -> None:
+        """Re-evaluate whether message ``i`` needs a day divider (after a removal
+        shifted what precedes it) and add/drop its widget to match."""
+        if not (0 <= i < len(self._messages)):
+            return
+        want = self._divider_for(i)
+        have = self._dividers[i]
+        if (want is None) == (have is None):
+            return  # label depends only on the day, which hasn't changed
+        if have is not None:
+            have.remove()
+        if want is not None:
+            self.mount(want, before=self._widgets[i])
+        self._dividers[i] = want
 
     def selected_message(self) -> RemoteMessage | None:
         if 0 <= self._selected < len(self._messages):
@@ -590,10 +628,7 @@ class MessagePane(VerticalScroll, can_focus=True):
                 for r in m.reactions
             )
             body += f"\n{pills}"
-        composed = self._with_avatar(m, body, continuation=cont)
-        if new_day:  # a day divider above the first message of each day
-            composed = f"{_day_divider(m.ts)}\n{composed}"
-        return composed
+        return self._with_avatar(m, body, continuation=cont)
 
     def _with_avatar(self, m: RemoteMessage, body: str,
                      continuation: bool = False) -> str:
