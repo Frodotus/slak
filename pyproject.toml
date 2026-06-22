@@ -1,6 +1,6 @@
 [project]
 name = "slak"
-version = "0.1.8"
+version = "26.6.1"
 description = "A terminal Slack client built on Textual"
 readme = "README.md"
 license = { file = "LICENSE" }

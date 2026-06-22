@@ -175,6 +175,13 @@ pytest                               # run the test suite
 The look is themeable CSS — edit `slak/ui/styles/app.tcss` while running under
 `--dev` to restyle instantly.
 
+## Versioning
+
+Releases use calendar versioning **`YY.M.N`** — two-digit year, month (not
+zero-padded), and the Nth release that month. For example the third release in
+June 2026 is `26.6.3`. `scripts/bump_version.py` derives the next version from the
+date and existing tags and writes it to `pyproject.toml` and `slak/version.py`.
+
 ## License
 
 [GNU General Public License v3.0 or later](LICENSE).

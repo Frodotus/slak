@@ -31,6 +31,9 @@ m = re.search(r'__version__\s*=\s*"([^"]+)"', src)
 version_py = m.group(1) if m else "?"
 
 errors = []
+# calendar versioning YY.M.N (year, month, Nth release that month) — warn, don't fail
+if not re.match(r"^\d{2}\.\d{1,2}\.\d+$", pyproject):
+    print(f"warning: {pyproject!r} is not calendar versioning (YY.M.N)", file=sys.stderr)
 if tag != f"v{pyproject}":
     errors.append(f"tag {tag!r} != v{pyproject} (pyproject)")
 if version_py != pyproject:
