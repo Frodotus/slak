@@ -49,7 +49,9 @@ full keybinding reference.
   blocks (rendered literally on a tinted block), and Block Kit / legacy attachments
   (headers, sections, fields, context, dividers, controls).
 - Inline images for files and attachments — kitty graphics on kitty, `▀` half-blocks
-  on any truecolor terminal.
+  on any truecolor terminal. Other files (PDFs, video, audio, archives, …) show as
+  clickable cards (icon + name + size); text snippets render their preview as a code
+  block.
 - `Space` previews the selected message's image full-screen. Default is an in-terminal
   preview (works over SSH); set `[appearance] image_preview = gui` to open it in an
   external viewer on the local machine instead.

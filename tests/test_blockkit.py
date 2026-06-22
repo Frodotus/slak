@@ -19,6 +19,32 @@ import json
 from slak.blockkit import image_urls, preview_image_urls, render_extras
 
 
+def test_pdf_file_renders_as_clickable_card():
+    raw = json.dumps({"files": [{
+        "name": "report.pdf", "mimetype": "application/pdf",
+        "url_private": "https://x/r.pdf", "size": 1572864,
+    }]})
+    out = "\n".join(render_extras(raw, name_of=str))
+    assert '[link="https://x/r.pdf"]' in out      # clickable
+    assert "📄" in out and "report.pdf" in out     # icon + name
+    assert "1.5 MB" in out                          # human size
+
+
+def test_snippet_file_renders_its_preview_as_a_code_block():
+    raw = json.dumps({"files": [{
+        "name": "snip", "mode": "snippet", "mimetype": "text/x-python",
+        "preview": "def f():\n    return 1", "url_private": "https://x/s",
+    }]})
+    out = "\n".join(render_extras(raw, name_of=str))
+    assert "[on $surface]" in out                   # code-block styling
+    assert "def f():" in out
+
+
+def test_non_image_file_without_url_is_plain_text():
+    out = "\n".join(render_extras(json.dumps({"files": [{"name": "thing.bin"}]}), name_of=str))
+    assert "thing.bin" in out and "[link=" not in out
+
+
 def test_preview_image_urls_prefers_full_resolution_files():
     raw = json.dumps({
         "files": [{"mimetype": "image/png", "thumb_360": "t/360.png",

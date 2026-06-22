@@ -25,12 +25,13 @@ as a labelled placeholder for now (the §4 image pipeline is messages-only).
 
 from __future__ import annotations
 
+import html
 import json
 from typing import Callable
 
 from slak.markup import escape
 
-from slak.render import render_message
+from slak.render import code_block, render_message
 
 NameOf = Callable[[str], str]
 CustomRender = Callable[[str], "str | None"] | None
@@ -74,9 +75,9 @@ def render_extras(
         lines += _render_attachments(attachments, name_of, custom_render, image_render)
 
     for f in data.get("files") or []:
-        url = _file_image_url(f)
-        if url:
-            lines.append(_img(url, f.get("name", "image"), image_render))
+        rendered = _render_file(f, image_render)
+        if rendered:
+            lines.append(rendered)
 
     if interactive:
         lines.append("[dim]↗ open in Slack to interact[/dim]")
@@ -122,6 +123,65 @@ def _file_image_url(f) -> str | None:
     if not isinstance(f, dict) or not str(f.get("mimetype", "")).startswith("image/"):
         return None
     return f.get("thumb_360") or f.get("thumb_480") or f.get("url_private")
+
+
+_ARCHIVE_TYPES = {"zip", "gz", "tar", "tgz", "rar", "7z", "bz2", "xz"}
+
+
+def _human_size(n) -> str:
+    """Human-readable byte size, e.g. ``1.5 MB`` (empty for unknown/zero)."""
+    if not isinstance(n, (int, float)) or n <= 0:
+        return ""
+    size = float(n)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+    return ""
+
+
+def _file_icon(f: dict) -> str:
+    mt = str(f.get("mimetype", "")).lower()
+    ft = str(f.get("filetype", "")).lower()
+    if mt.startswith("image/"):
+        return "🖼"
+    if mt.startswith("video/"):
+        return "🎬"
+    if mt.startswith("audio/"):
+        return "🎵"
+    if ft == "pdf" or mt == "application/pdf":
+        return "📄"
+    if ft in _ARCHIVE_TYPES or "zip" in mt or "compressed" in mt:
+        return "📦"
+    if f.get("mode") == "snippet" or mt.startswith("text/"):
+        return "📝"
+    return "📎"
+
+
+def _render_file(f, image_render: ImageRender) -> str | None:
+    """Render one attached file: inline image, snippet (code block), or a
+    clickable card (icon + name + size linking to the file)."""
+    if not isinstance(f, dict):
+        return None
+    name = f.get("name") or f.get("title") or "file"
+    mt = str(f.get("mimetype", "")).lower()
+    if mt.startswith("image/"):
+        url = _file_image_url(f)
+        return _img(url, name, image_render) if url else None
+
+    url = f.get("url_private") or f.get("permalink") or ""
+    head = f'[link="{url}"]{_file_icon(f)} {escape(name)}[/link]' if url \
+        else f"{_file_icon(f)} {escape(name)}"
+    size = _human_size(f.get("size"))
+    if size:
+        head += f"  [dim]{size}[/dim]"
+
+    # text snippets: show Slack's truncated preview as a code block
+    if f.get("mode") == "snippet" or mt.startswith("text/"):
+        preview = html.unescape(f.get("preview") or "")
+        if preview.strip():
+            return head + "\n" + code_block(preview)
+    return head
 
 
 def _file_preview_url(f) -> str | None:

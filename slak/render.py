@@ -119,14 +119,15 @@ def render_message(
     # 7. re-inject fenced code blocks, rendered as styled (literal) code
     if code_blocks:
         text = _FENCE_SLOT.sub(
-            lambda m: _code_block(code_blocks[int(m.group(1))]), text
+            lambda m: code_block(code_blocks[int(m.group(1))]), text
         )
     return text
 
 
-def _code_block(code: str) -> str:
-    """Render fenced code as one styled line per source line — literal text on a
-    surface background with a left bar; no markdown/emoji/mention processing."""
+def code_block(code: str) -> str:
+    """Render code as one styled line per source line — literal text on a surface
+    background with a left bar; no markdown/emoji/mention processing. Shared by
+    fenced code blocks (above) and snippet file attachments."""
     code = html.unescape(code).strip("\n")
     return "\n".join(
         f"[dim]▏[/][on $surface] {escape(line)} [/]" for line in code.split("\n")
