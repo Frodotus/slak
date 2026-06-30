@@ -45,14 +45,56 @@ def message_dict(rm, name_of: Callable[[str], str]) -> dict:
     }
 
 
-def build_snapshot(*, workspace, channel, selected, thread, recent) -> dict:
-    """Assemble the immutable context snapshot (all names are display names)."""
+def _gap_ok(a, b, gap_seconds: float) -> bool:
+    try:
+        return abs(float(b.ts) - float(a.ts)) <= gap_seconds
+    except (ValueError, TypeError):
+        return False
+
+
+def burst_bounds(messages, index, gap_seconds: float = 300) -> tuple[int, int]:
+    """Inclusive ``(start, end)`` of the burst the message at ``index`` belongs to.
+
+    A burst is a run of consecutive messages from the same author with no more
+    than ``gap_seconds`` between adjacent ones — the way people fire off several
+    short lines that together form a single thought. Empty/out-of-range → that
+    index unchanged."""
+    if not messages or not (0 <= index < len(messages)):
+        return (index, index)
+    uid = messages[index].user_id
+    start = index
+    while start > 0 and messages[start - 1].user_id == uid \
+            and _gap_ok(messages[start - 1], messages[start], gap_seconds):
+        start -= 1
+    end = index
+    while end + 1 < len(messages) and messages[end + 1].user_id == uid \
+            and _gap_ok(messages[end], messages[end + 1], gap_seconds):
+        end += 1
+    return (start, end)
+
+
+def window_bounds(n: int, index: int, before: int = 5, after: int = 5) -> tuple[int, int]:
+    """Inclusive ``(lo, hi)`` of a window of ``before``/``after`` messages around
+    ``index``, clamped to ``[0, n - 1]`` — the local conversation context."""
+    return (max(0, index - before), min(n - 1, index + after))
+
+
+def build_snapshot(*, workspace, channel, selected, thread, recent,
+                   selected_block=None, context_around=None) -> dict:
+    """Assemble the immutable context snapshot (all names are display names).
+
+    ``selected_block`` is the burst the selection belongs to (so a multi-line
+    message reads as one unit); ``context_around_selected`` is a window of the
+    surrounding conversation, centred on the selection rather than the channel
+    tail."""
     return {
         "workspace": workspace,
         "channel": channel,
         "selected_message": selected,
+        "selected_block": selected_block or ([selected] if selected else []),
         "thread": thread or {"open": False},
         "recent_messages": recent,
+        "context_around_selected": context_around or [],
     }
 
 

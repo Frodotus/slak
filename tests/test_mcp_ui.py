@@ -23,6 +23,7 @@ from slak.app import PyslkApp
 from slak.cache import Cache
 from slak.config import Config
 from slak.slack import FakeSlackClient, RemoteChannel, RemoteMessage, RemoteUser
+from slak.ui.widgets import MessagePane
 from slak.workspace import WorkspaceRouter
 
 
@@ -52,6 +53,37 @@ async def test_snapshot_reflects_active_channel_and_messages():
         assert snap["recent_messages"][-1]["text"] == "hello there"
         assert snap["recent_messages"][-1]["user"] == "bob"
         assert snap["thread"] == {"open": False}
+
+
+async def test_snapshot_groups_selected_burst_and_windows_around_it():
+    client = FakeSlackClient(
+        team_id="T1", team_name="Acme",
+        channels=[RemoteChannel("C1", "general")],
+        history={"C1": [
+            RemoteMessage("100.0", "U2", "earlier"),
+            RemoteMessage("200.0", "U3", "hey"),          # burst start
+            RemoteMessage("260.0", "U3", "are you around?"),
+            RemoteMessage("300.0", "U3", "need a hand"),   # burst end
+            RemoteMessage("400.0", "U2", "later"),
+        ]},
+        users=[RemoteUser("U2", "bob"), RemoteUser("U3", "carol")],
+    )
+    app = PyslkApp(router=WorkspaceRouter.single(client),
+                   cache=Cache.open(":memory:"), config=Config())
+    async with app.run_test() as pilot:
+        for _ in range(4):
+            await pilot.pause()
+        pane = app.query_one("#messages", MessagePane)
+        pane.select_by_ts("260.0")  # the middle line of carol's burst
+        snap = app.mcp_snapshot()
+        # the selected unit is carol's whole burst, not just the one line
+        assert [m["text"] for m in snap["selected_block"]] == [
+            "hey", "are you around?", "need a hand"
+        ]
+        assert all(m["user"] == "carol" for m in snap["selected_block"])
+        # the window is centred on the selection (includes neighbours)
+        texts = [m["text"] for m in snap["context_around_selected"]]
+        assert "earlier" in texts and "later" in texts
 
 
 async def test_set_draft_populates_the_compose_box():

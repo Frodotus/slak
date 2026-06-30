@@ -66,7 +66,13 @@ def run_adapter(socket_path: str) -> None:
 
     @server.tool()
     async def slak_get_context() -> dict:
-        """Read slak's current context (workspace, channel, selection, thread)."""
+        """Read slak's current context (workspace, channel, selection, thread).
+
+        ``selected_block`` is the full burst of consecutive messages the selected
+        one belongs to — treat that as the message to reply to, since people
+        often split a single thought across several lines.
+        ``context_around_selected`` is the surrounding conversation centred on the
+        selection. ``recent_messages`` is the channel tail."""
         return await request(socket_path, "get_context")
 
     @server.tool()

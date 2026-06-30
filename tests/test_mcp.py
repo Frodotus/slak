@@ -46,6 +46,50 @@ def test_build_snapshot_shape():
     assert len(snap["recent_messages"]) == 1
 
 
+def test_burst_bounds_groups_consecutive_same_author():
+    from slak.mcp import burst_bounds
+    msgs = [
+        RemoteMessage("100.0", "U1", "hey"),
+        RemoteMessage("160.0", "U1", "are you around?"),   # +60s, same author
+        RemoteMessage("180.0", "U1", "need a hand"),        # +20s, same author
+        RemoteMessage("200.0", "U2", "sure"),               # other author
+    ]
+    # selecting anywhere in U1's run returns the whole burst [0..2]
+    assert burst_bounds(msgs, 0) == (0, 2)
+    assert burst_bounds(msgs, 1) == (0, 2)
+    assert burst_bounds(msgs, 2) == (0, 2)
+    assert burst_bounds(msgs, 3) == (3, 3)
+
+
+def test_burst_bounds_breaks_on_a_long_time_gap():
+    from slak.mcp import burst_bounds
+    msgs = [
+        RemoteMessage("100.0", "U1", "morning"),
+        RemoteMessage("100000.0", "U1", "afternoon"),  # same author, hours later
+    ]
+    assert burst_bounds(msgs, 1, gap_seconds=300) == (1, 1)
+
+
+def test_window_bounds_clamps_to_range():
+    from slak.mcp import window_bounds
+    assert window_bounds(10, 5, before=2, after=2) == (3, 7)
+    assert window_bounds(10, 0, before=3, after=2) == (0, 2)
+    assert window_bounds(10, 9, before=2, after=3) == (7, 9)
+
+
+def test_build_snapshot_includes_block_and_window():
+    block = [{"ts": "1", "user": "b", "text": "a", "reactions": []},
+             {"ts": "2", "user": "b", "text": "b", "reactions": []}]
+    around = [{"ts": "1", "user": "b", "text": "a", "reactions": []}]
+    snap = build_snapshot(
+        workspace="A", channel=None,
+        selected=block[-1], thread={"open": False}, recent=[],
+        selected_block=block, context_around=around,
+    )
+    assert snap["selected_block"] == block
+    assert snap["context_around_selected"] == around
+
+
 def test_handle_request_get_context():
     snap = {"workspace": "Acme"}
     resp = handle_request(

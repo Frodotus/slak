@@ -84,7 +84,9 @@ full keybinding reference.
 - RTM with exponential-backoff reconnection and missed-history backfill.
 - Desktop notifications, presence/DND, terminal tab-title unread indicator.
 - Opt-in embedded **MCP server** (`[mcp] enabled = true`) — an AI client reads your
-  context (`slak_get_context`) and drafts a reply (`slak_set_draft`, draft-only).
+  context (`slak_get_context`, which groups the selected message into its full
+  burst of consecutive lines and includes the conversation around it) and drafts a
+  reply (`slak_set_draft`, draft-only).
   Run the adapter with `slak --mcp` (`pip install 'slak[mcp]'`).
 
 Underneath: a pluggable `SlackClient` (browser-cookie auth, with an in-memory fake

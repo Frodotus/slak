@@ -113,7 +113,14 @@ from slak.fonts import file_glyphs_available, use_nerd_glyphs
 from slak.markup import escape
 from slak.ui.widgets import THREADS_ROW_ID
 from slak.sections import layout as section_layout, order_native_sections
-from slak.mcp import build_snapshot, default_socket_path, message_dict, serve as serve_mcp
+from slak.mcp import (
+    build_snapshot,
+    burst_bounds,
+    default_socket_path,
+    message_dict,
+    serve as serve_mcp,
+    window_bounds,
+)
 from slak import themes
 from slak.workspace import WorkspaceRouter
 
@@ -1407,6 +1414,20 @@ class PyslkApp(App):
         pane = self.query_one("#messages", MessagePane)
         sm = pane.selected_message()
         selected = message_dict(sm, self._name_of) if sm else None
+        selected_block, context_around = [], []
+        if sm is not None:
+            idx = pane._selected
+            msgs = pane._messages
+            # the burst the selection belongs to (multi-line message as one unit)
+            bstart, bend = burst_bounds(msgs, idx)
+            selected_block = [
+                message_dict(m, self._name_of) for m in msgs[bstart:bend + 1]
+            ]
+            # surrounding conversation, centred on the selection (not the tail)
+            wlo, whi = window_bounds(len(msgs), idx)
+            context_around = [
+                message_dict(m, self._name_of) for m in msgs[wlo:whi + 1]
+            ]
         recent = [message_dict(m, self._name_of) for m in pane._messages[-20:]]
         thread = {"open": False}
         if self.open_thread_ts and self.query_one("#thread", ThreadPanel).display:
@@ -1420,6 +1441,7 @@ class PyslkApp(App):
         return build_snapshot(
             workspace=workspace, channel=channel, selected=selected,
             thread=thread, recent=recent,
+            selected_block=selected_block, context_around=context_around,
         )
 
     def mcp_set_draft(self, text: str) -> dict:
